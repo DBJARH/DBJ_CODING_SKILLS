@@ -67,15 +67,11 @@
 
 /* ── record ────────────────────────────────────────────────────── */
 
-typedef uint8_t EmailId;   /* 0x00 = empty slot sentinel */
+// TODO: obviously we do not want specific email id for generic error type
+#ifndef EmailId
+#define EmailId uint8_t    
+#endif // EmailId
 
-typedef struct {
-    EmailId id;
-    char    to[64];
-    char    from[64];
-    char    subject[128];
-    char    body[512];
-} EmailRecord;
 
 /* ── result (discriminated union #1) ──────────────────────────── */
 
@@ -97,6 +93,16 @@ static inline Result result_err(const char *msg) {
     strncpy(r.err.msg, msg, sizeof r.err.msg - 1);
     return r;
 }
+
+typedef struct {
+    EmailId id;
+    char    to[64];
+    char    from[64];
+    char    subject[128];
+    char    body[512];
+} EmailRecord;
+
+
 
 /* ── command (discriminated union #2) ─────────────────────────── */
 /*
