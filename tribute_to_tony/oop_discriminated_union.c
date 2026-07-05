@@ -1,7 +1,7 @@
 /*
     2026APR04       (c) dbj@dbj.org     human optimizes version of https://godbolt.org/z/sb7MTeGax
     
-     gcc -std=c2x -Wall -Wswitch -Werror -o tribute_to_tony tribute_to_tony.c
+     gcc -std=c2x -Wall -Wswitch -Werror -o tribute_to_tony oop_discriminated_union.c
 */
 #include <assert.h>
 #include <stdbool.h>
@@ -9,88 +9,13 @@
 #include <stdio.h>
 #include <string.h>
 
-/* ── logging ───────────────────────────────────────────────────── */
-
-#define my_LOG(fmt, ...) \
-    fprintf(stdout, "[%6d] " fmt "\n", __LINE__ __VA_OPT__(, ) __VA_ARGS__)
-
-#ifdef NDEBUG
-#define my_DBG(fmt, ...) ((void)0)
-#define DBG_LOG_RESULT(r_) ((void)0)
-#define DBG_LOG_EMAIL_CMD(cmd_) ((void)0)
-#else
-
-#define my_DBG(fmt, ...)                              \
-    fprintf(stdout, "[%6d] %s() " fmt "\n", __LINE__, \
-            __func__ __VA_OPT__(, ) __VA_ARGS__)
-
-#define DBG_LOG_RESULT(r_)                           \
-    do {                                             \
-        if ((r_).tag == OK)                          \
-            my_DBG("result OK  id=%u", (r_).ok.id);  \
-        else                                         \
-            my_DBG("result ERR — %s", (r_).err.msg); \
-    } while (0)
-
-#define DBG_LOG_EMAIL_CMD(cmd_)                                              \
-    do {                                                                     \
-        switch ((cmd_)->tag) {                                               \
-            case CMD_CREATE:                                                 \
-                my_DBG("CMD CREATE to=%s from=%s subject=%s",                \
-                       (cmd_)->params.create.to, (cmd_)->params.create.from, \
-                       (cmd_)->params.create.subject);                       \
-                break;                                                       \
-            case CMD_READ:                                                   \
-                my_DBG("CMD READ id=%u", (cmd_)->params.read.id);            \
-                break;                                                       \
-            case CMD_UPDATE:                                                 \
-                my_DBG("CMD UPDATE id=%u subject=%s",                        \
-                       (cmd_)->params.update.id,                             \
-                       (cmd_)->params.update.subject);                       \
-                break;                                                       \
-            case CMD_DELETE:                                                 \
-                my_DBG("CMD DELETE id=%u", (cmd_)->params.del.id);           \
-                break;                                                       \
-        }                                                                    \
-    } while (0)
-#endif
-
 // typedef unsigned char U8TYPE ;
-// due to Code intelisense limitations we do mthe following
+// due to Code intellisense limitations we do the following
 #define U8TYPE unsigned char
 
-/* ── result (discriminated union #1) ──────────────────────────── */
-
-typedef U8TYPE RetVAL; /* value carried in the ok arm of Result */
-
-typedef enum : U8TYPE {
-    OK,
-    ERR,
-} ResultTag;
-
-typedef struct {
-    ResultTag tag;
-    union {
-        struct {
-            RetVAL id;
-        } ok;
-        struct {
-            char msg[128];
-        } err;
-    };
-} Result;
-
-// could be macro, but ...
-static inline Result result_ok(RetVAL id) {
-    return (Result){.tag = OK, .ok = {id}};
-}
-static inline Result result_err(const char* func, const char* msg) {
-    assert(func && "result_err called with null func");
-    assert(msg && "result_err called with null message");
-    Result r = {.tag = ERR};
-    snprintf(r.err.msg, sizeof r.err.msg, "%s — %s", func, msg);
-    return r;
-}
+#define DBJ_ERR_IMPLEMENTATION
+#include "dbj_err.h"
+#include "dbj_log.h"
 
 /* ── record ──────────────────────────────────────────────────────v */
 
@@ -208,35 +133,35 @@ static EmailId next_id = 0x01;
 
 static Result impl_create(EmailStorage* s, const EmailCmd* cmd) {
     EmailRecord* slot = find_empty(s);
-    if (!slot) return result_err(__func__, "storage full");
+    if (!slot) return result_instance_err(__func__, "storage full");
     *slot = (EmailRecord){.id = next_id++};
     memcpy(slot->to, cmd->params.create.to, sizeof slot->to - 1);
     memcpy(slot->from, cmd->params.create.from, sizeof slot->from - 1);
     memcpy(slot->subject, cmd->params.create.subject, sizeof slot->subject - 1);
     memcpy(slot->body, cmd->params.create.body, sizeof slot->body - 1);
-    return result_ok(slot->id);
+    return result_instance_ok(slot->id);
 }
 
 static Result impl_read(const EmailStorage* s, const EmailCmd* cmd) {
     for (U8TYPE i = 0; i < CAPACITY; ++i)
         if (s->storage[i].id == cmd->params.read.id)
-            return result_ok(cmd->params.read.id);
-    return result_err(__func__, "not found");
+            return result_instance_ok(cmd->params.read.id);
+    return result_instance_err(__func__, "not found");
 }
 
 static Result impl_update(EmailStorage* s, const EmailCmd* cmd) {
     EmailRecord* r = find_first_non_empty_slot(s, cmd->params.update.id);
-    if (!r) return result_err(__func__, "not found");
+    if (!r) return result_instance_err(__func__, "not found");
     memcpy(r->subject, cmd->params.update.subject, sizeof r->subject - 1);
     memcpy(r->body, cmd->params.update.body, sizeof r->body - 1);
-    return result_ok(cmd->params.update.id);
+    return result_instance_ok(cmd->params.update.id);
 }
 
 static Result impl_delete(EmailStorage* s, const EmailCmd* cmd) {
     EmailRecord* r = find_first_non_empty_slot(s, cmd->params.del.id);
-    if (!r) return result_err(__func__, "not found");
+    if (!r) return result_instance_err(__func__, "not found");
     *r = (EmailRecord){.id = EMAIL_ID_NULL};  // implicit and deliberate!
-    return result_ok(cmd->params.del.id);
+    return result_instance_ok(cmd->params.del.id);
 }
 
 /* ── single dispatch — the Hoare switch ───────────────────────── */
