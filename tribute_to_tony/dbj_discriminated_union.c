@@ -1,7 +1,7 @@
 /*
     2026APR04       (c) dbj@dbj.org     human optimizes version of https://godbolt.org/z/sb7MTeGax
     
-     gcc -std=c2x -Wall -Wswitch -Werror -o tribute_to_tony oop_discriminated_union.c
+     gcc -std=c2x -Wall -Wswitch -Werror -o tribute_to_tony dbj_discriminated_union.c
 */
 #include <assert.h>
 #include <stdbool.h>

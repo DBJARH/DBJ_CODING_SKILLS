@@ -6,17 +6,24 @@ unions / tagged records versus OOP-style dispatch.
 
 ## Contents
 
-- [tribute_to_tony/](tribute_to_tony/) — the main writeup. Explains
-  Hoare's 1966 "Record Handling" concept (tagged unions + exhaustive
-  switch), why OOP dropped it, and why it resurfaced in Rust/Swift/Kotlin.
-  See [tribute_to_tony/readme.md](tribute_to_tony/readme.md) for the full
-  article, [tribute_to_tony/oop_discriminated_union.c](tribute_to_tony/oop_discriminated_union.c)
-  for the code, and [tribute_to_tony/code_review.md](tribute_to_tony/code_review.md)
-  for an AI-made, human-assisted comparison.
-- [not_oop_dbj_improved/](not_oop_dbj_improved/) — the human-improved,
-  non-OOP version of the tribute_to_tony example.
-- [discarded_vibecode/](discarded_vibecode/) — the original vibe-coded
-  (AI-generated) version, kept for comparison.
+- [tribute_to_tony/](tribute_to_tony/) — a discriminated-union (tagged
+  union) CRUD example in ISO C23, in the spirit of C.A.R. Hoare's 1966
+  "Record Handling". For the concept itself — Hoare, Simula's
+  `inspect`-shaped mistake, and why tagged unions resurfaced in
+  Rust/Swift/Kotlin — see the published article:
+  [iceberg.dbj.org/posts/tonyhoare](https://iceberg.dbj.org/posts/tonyhoare/).
+  - [tribute_to_tony/dbj_discriminated_union.c](tribute_to_tony/dbj_discriminated_union.c) —
+    the current POC.
+  - [tribute_to_tony/dbj_err.h](tribute_to_tony/dbj_err.h) /
+    [dbj_log.h](tribute_to_tony/dbj_log.h) — shared `Result` type and
+    logging macros, factored out of the POC.
+  - [tribute_to_tony/top_level_requirements.md](tribute_to_tony/top_level_requirements.md) —
+    requirements this POC implements (see RQ01).
+  - [tribute_to_tony/analyzed_vibecode/](tribute_to_tony/analyzed_vibecode/) —
+    design-discussion material only; nothing under this folder is meant
+    to compile. Holds successive discarded AI-generated drafts
+    (`v0_initial_claude_code_vibes/`, `v1_substandard_claude_design/`)
+    each paired with a review/discussion file, kept for comparison.
 
 ## License
 

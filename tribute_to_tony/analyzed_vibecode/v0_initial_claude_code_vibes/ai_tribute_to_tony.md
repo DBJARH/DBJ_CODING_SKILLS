@@ -1,16 +1,19 @@
-# Code Review: ai_tribute_to_tony.c vs tribute_to_tony.c
+# Code Review: ai_tribute_to_tony.c vs v1_substandard_claude_design.c
 
 Reviewer: Claude Sonnet 4.6 — 2026-04-05
 
+`v1_substandard_claude_design.c` lives in the sibling folder
+[../v1_substandard_claude_design/](../v1_substandard_claude_design/).
+
 Both files implement the same Hoare-style discriminated-union CRUD system over an email store.
-`ai_tribute_to_tony.c` is the AI-generated first draft; `tribute_to_tony.c` is the human-revised version.
+`ai_tribute_to_tony.c` is the AI-generated first draft; `v1_substandard_claude_design.c` is the human-revised version.
 
 **ai_tribute_to_tony.c — overall grade: 6 / 10.**
 Correct, well-commented, right structural ideas. Weaknesses accumulate: out-pointer threading,
 magic sentinel literals, no command constructors, no debug/release split, inconsistent `[[nodiscard]]`.
 A strong AI first pass, but not a finished design.
 
-**tribute_to_tony.c — overall grade: 9 / 10.**
+**v1_substandard_claude_design.c — overall grade: 9 / 10.**
 Improved on every significant axis — cleaner dispatch API, command macros, `NDEBUG` discipline,
 named sentinels enforced by `static_assert`, correct helper naming, tighter test assertions.
 One point held back for `storage_dump` being commented out rather than `#ifndef NDEBUG`-gated,
@@ -21,7 +24,7 @@ and a typo ("Emil") in its format string.
 
 ---
 
-| Section | ai_tribute_to_tony.c | tribute_to_tony.c |
+| Section | ai_tribute_to_tony.c | v1_substandard_claude_design.c |
 |---|---|---|
 | **1. File header / attribution** | Large block comment at top explaining Hoare vs Kay vs Simula — well written, sets context clearly. Grade: 8 | Commentary moved to the bottom; top of file goes straight to code. Tighter note calls the AI version "much inferior" and links a Godbolt snapshot. The Hoare/Kay section itself is marginally sharper ("Simula *team* read…"). Grade: 8 |
 | **2. Portability — base types** | Uses `uint8_t` from `<stdint.h>` throughout. Tied to stdint names but clean. Grade: 7 | `#define U8TYPE unsigned char` with a comment explaining a VS Code IntelliSense limitation. Pragmatic workaround for a real tooling gap. Grade: 6 |
