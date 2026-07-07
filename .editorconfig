@@ -1,0 +1,19 @@
+# Standardizes whitespace/indent-style/line-endings across editors so
+# contributors on different machines don't produce noisy diffs from
+# mixed tabs/spaces or CRLF/LF — this repo was already seeing
+# "LF will be replaced by CRLF" warnings on commits before this file
+# existed. See also .gitattributes, which normalizes line endings in
+# the repo itself (this file only governs new edits in editors that
+# support EditorConfig).
+root = true
+
+[*]
+charset = utf-8
+end_of_line = lf
+insert_final_newline = true
+trim_trailing_whitespace = true
+indent_style = space
+indent_size = 4
+
+[*.md]
+trim_trailing_whitespace = false

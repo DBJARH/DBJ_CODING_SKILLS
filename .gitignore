@@ -1,0 +1,14 @@
+# Build artifacts (gcc/mingw)
+*.exe
+*.o
+*.obj
+*.out
+*.pdb
+*.ilk
+*.exp
+*.lib
+
+# OS/editor noise
+.DS_Store
+Thumbs.db
+*.swp
