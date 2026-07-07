@@ -1,0 +1,37 @@
+> Original readme content
+
+A simple .INI file parser written in C, released under the New BSD
+license (see LICENSE). The original project home page is located at:
+
+http://code.google.com/p/inih/
+
+> New readme content
+
+This code is copied from https://github.com/OSSystems/inih
+The only substantial change we did is to make it into single header STB style
+
+- `INIFILE_IMPLEMENTATION`
+  - define this in exactly one translation unit (one `.c` file) before
+    `#include "inifile.h"` to pull in the implementation; every other
+    file just includes the header normally (declarations only)
+- `INIFILE_ALLOW_MULTILINE`
+  - nonzero (default) to allow multi-line value parsing, Python
+    ConfigParser style: a subsequent indented line continues the
+    previous `name`'s value
+- `INIFILE_ALLOW_BOM`
+  - nonzero (default) to allow a UTF-8 BOM (`0xEF 0xBB 0xBF`) at the
+    start of the file
+- `INIFILE_USE_STACK`
+  - nonzero (default) to read each line into a stack buffer; zero to
+    use the heap (`malloc`/`free`) instead
+- `INIFILE_STOP_ON_FIRST_ERROR`
+  - zero (default) to keep parsing after a line error; nonzero to stop
+    at the first one
+- `INIFILE_MAX_LINE`
+  - maximum line length, in bytes, for any line in the `.ini` file
+    (default `200`)
+
+
+---
+2026-07-07  dbj@dbj.org
+
