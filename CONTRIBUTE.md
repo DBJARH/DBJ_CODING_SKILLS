@@ -1,11 +1,31 @@
+
+
+> **Caveat Emptor**: We are enjoying the metapresence of [DBJ Taxonomies](https://method.dbj.org/taxonomy_core.html). Thus we know where are we in the information space with these endeavor. Top category: **Implementation**. Capability: **Development**. In other word: We know what is this all about. And we can explain it to the reader.
+>
+
 # How to Build tribute_to_tony
 
 ## What you need
 
 - Windows 10 or later
-- MinGW-w64 GCC installed at `G:\mingw64`
+  - Might be not needed. To be confirmed.
+  - AFAIK there is no WIN specific code in here.
+
+## Mandated compiler is GCC 15.x or better
+
+- On this machine MinGW-w64 GCC installed at `G:\mingw64`
   (get it from https://winlibs.com — download the latest GCC release, extract to `G:\mingw64`)
-    - of course for any other folder preference you wil change this setup easily
+    - of course for any other folder preference of yours, you wil change this setup easily
+
+On this machine the CLI check delivers:
+
+```
+PS G:\mingw64\bin> gcc --version
+gcc.exe (MinGW-W64 x86_64-msvcrt-posix-seh, built by Brecht Sanders, r1) 15.2.0
+Copyright (C) 2025 Free Software Foundation, Inc.
+This is free software; see the source for copying conditions.  There is NO
+warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+```
 
 ---
 

@@ -1,3 +1,7 @@
+
+> **Caveat Emptor**: We are enjoying the metapresence of [DBJ Taxonomies](https://method.dbj.org/taxonomy_core.html). Thus we know where are we in the information space with these endeavor. Top category: **Implementation**. Capability: **Development**. In other word: We know what is this all about. And we can explain it to the reader.
+>
+
 # dbj_str
 
 > Core principles for this repo are defined once, in

@@ -2,6 +2,11 @@
 
 Guidance for Claude Code when working in this repository.
 
+
+> **Caveat Emptor**: We are enjoying the metapresence of [DBJ Taxonomies](https://method.dbj.org/taxonomy_core.html). Thus we know where are we in the information space with these endeavor. Top category: **Implementation**. Capability: **Development**. In other word: We know what is this all about. And we can explain it to the reader.
+>
+
+
 ## What this repo is
 
 Small, self-contained C proof-of-concepts, not a build/library project.
@@ -65,7 +70,13 @@ here instead.
 6. Data > Domain
 7. Primary language: C23
 8. Use `defer` statements wherever possible
-9. Use C23 array parameters with `static` and size expressions on functions
+9. Every array parameter, on every function including `main`, must use
+   the C23 `static` + size-expression form — e.g.
+   `char *argv[static argc + 1]`, not `char **argv` or `char argv[]`.
+   Note the element type still has to satisfy the compiler's
+   requirements for that function (`main`'s second parameter must stay
+   compatible with `char **`, so it's `char *argv[static ...]`, an array
+   of pointers, not `char argv[static ...]`, an array of `char`).
 
 ## Working conventions
 
