@@ -7,10 +7,6 @@
     included first.
 */
 
-#ifndef U8TYPE
-#define U8TYPE unsigned char
-#endif
-
 #ifndef EMAIL_STORAGE_CAPACITY
 #define EMAIL_STORAGE_CAPACITY 0xF
 #endif

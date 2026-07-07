@@ -6,11 +6,7 @@
     Requires dbj_email_record.h (EmailRecord) to be included first.
 */
 
-#ifndef U8TYPE
-#define U8TYPE unsigned char
-#endif
-
-typedef enum : U8TYPE {
+typedef enum : unsigned short {
     EMAIL_STORAGE_OK,
     EMAIL_STORAGE_ERR,
 } EmailStorageResultTag;

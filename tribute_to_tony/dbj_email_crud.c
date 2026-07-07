@@ -23,8 +23,6 @@
 #include <stdint.h>
 #include <stdio.h>
 
-#define U8TYPE unsigned char
-
 #include "dbj_email_record.h"
 
 #define DBJ_EMAIL_STORAGE_RESULT_IMPLEMENTATION
