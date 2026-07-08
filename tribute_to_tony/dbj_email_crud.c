@@ -31,7 +31,7 @@
 #define DBJ_EMAIL_STORAGE_IMPLEMENTATION
 #include "dbj_email_storage.h"
 
-#include "dbj_log.h"
+#include "../toplevel/simple_log.h"
 
 #include <tau/tau.h>
 TAU_MAIN()
@@ -55,9 +55,9 @@ TEST(EmailStorage, crud_flow) {
     /* READ */
     EmailStorageResult r1 = db->ReadEmail(carol_id);
     if (r1.tag == EMAIL_STORAGE_OK)
-        my_LOG("READ  id=%zu subject=%s", r1.ok.record.record_id, r1.ok.record.subject);
+        SIMPLE_LOG("READ  id=%zu subject=%s", r1.ok.record.record_id, r1.ok.record.subject);
     else
-        my_LOG("READ  id=%zu failed — %s", carol_id, r1.err.message);
+        SIMPLE_LOG("READ  id=%zu failed — %s", carol_id, r1.err.message);
     CHECK_TRUE(r1.tag == EMAIL_STORAGE_OK, "READ carol failed");
 
     EmailStorageResult r2 = db->ReadEmail(0x42);
@@ -69,9 +69,9 @@ TEST(EmailStorage, crud_flow) {
                        .from = "alice@example.com",
                        .subject = "Q1 report (final)", .body = "Revised."});
     if (u1.tag == EMAIL_STORAGE_OK)
-        my_LOG("UPDATE id=%zu subject=%s", u1.ok.record.record_id, u1.ok.record.subject);
+        SIMPLE_LOG("UPDATE id=%zu subject=%s", u1.ok.record.record_id, u1.ok.record.subject);
     else
-        my_LOG("UPDATE id=%zu failed — %s", bob_id, u1.err.message);
+        SIMPLE_LOG("UPDATE id=%zu failed — %s", bob_id, u1.err.message);
     CHECK_TRUE(u1.tag == EMAIL_STORAGE_OK, "UPDATE bob failed");
 
     EmailStorageResult u2 = db->UpdateEmail(
