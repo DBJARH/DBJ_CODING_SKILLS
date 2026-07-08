@@ -32,6 +32,36 @@ The only substantial change we did is to make it into single header STB style
     (default `200`)
 
 
+ 
+### FIXED (was: BAD DESIGN WE INHERITED)
+
+`inifile.h` used to have:
+
+```c
+int ini_parse(const char* filename,
+              int (*handler)(void* user, const char* section,
+                             const char* name, const char* value),
+              void* user);
+```
+
+The returned `int` was overloaded with three unrelated meanings -- 0
+(success), a positive line number (where parsing first failed), or an
+errno.h constant (a system-level failure) -- and nothing in the type
+distinguished which case a caller got.
+
+Fixed by splitting the two kinds of failure into separate fields,
+in the spirit of this repo's Result pattern in `tribute_to_tony`:
+
+```c
+   typedef struct {
+       errno_t      error_ ;
+       int          optional_line_no_ ;
+   } Inifile_result ;
+```
+
+`ini_parse` and `ini_parse_file` now both return `Inifile_result`.
+
+
 ---
 2026-07-07  dbj@dbj.org
 

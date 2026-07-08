@@ -27,6 +27,14 @@ This is free software; see the source for copying conditions.  There is NO
 warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 ```
 
+GCC 15 or better is the *only* supported compiler — Clang, MSVC, and
+everything else are explicitly not supported (some code relies on GCC
+extensions, e.g. nested functions, that Clang does not implement).
+This is enforced at compile time, not just documented: include
+[`toplevel/required_compile_time.h`](toplevel/required_compile_time.h)
+and any build with Clang or with GCC older than 15 fails immediately
+with a `#error`.
+
 ---
 
 ## IntelliSense warning

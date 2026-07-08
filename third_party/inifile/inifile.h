@@ -16,6 +16,9 @@ extern "C" {
 #endif
 
 #include <stdio.h>
+#include <errno.h>
+
+#include "../../toplevel/defer.h"
 
 /* Nonzero to allow multi-line value parsing, in the style of Python's
    ConfigParser. If allowed, ini_parse() will call the handler with the same
@@ -54,18 +57,32 @@ extern "C" {
    pointer as well as section, name, and value (data only valid for duration
    of handler call). Handler should return nonzero on success, zero on error.
 
-   Returns 0 on success, line number of first error on parse error (doesn't
-   stop on first error), -1 on file open error, or -2 on memory allocation
-   error (only when INIFILE_USE_STACK is zero).
+   Returns an Inifile_result: error_ is 0 on success or an errno.h constant
+   (ENOENT on file open error, ENOMEM on allocation error) on system failure;
+   optional_line_no_ is the line number of the first parse error, or 0 if
+   there was none. The two are reported separately on purpose -- see the
+   FIXED note below.
 */
-int ini_parse(const char* filename,
+/* FIXED (was: BAD DESIGN WE INHERITED). ini_parse/ini_parse_file used to
+   return a single int overloading three meanings -- success, a parse-error
+   line number, and a system errno -- indistinguishable to the caller.
+   Inifile_result now reports the system error and the parse-error line
+   as separate fields. */
+
+   typedef struct {
+       errno_t      error_ ;
+       int          optional_line_no_ ;
+   } Inifile_result ;
+
+Inifile_result ini_parse(const char* filename,
               int (*handler)(void* user, const char* section,
                              const char* name, const char* value),
               void* user);
 
-/* Same as ini_parse(), but takes a FILE* instead of filename. This doesn't
-   close the file when it's finished -- the caller must do that. */
-int ini_parse_file(FILE* file,
+/* Same as ini_parse(), but takes an already-open FILE* instead of a
+   filename, and -- unlike ini_parse(), which opens and closes the file
+   itself -- never closes it; the caller opened it, the caller closes it. */
+Inifile_result ini_parse_file(FILE* file,
                    int (*handler)(void* user, const char* section,
                                   const char* name, const char* value),
                    void* user);
@@ -127,7 +144,7 @@ static char* strncpy0(char* dest, const char* src, size_t size)
 }
 
 /* See documentation in header file. */
-int ini_parse_file(FILE* file,
+Inifile_result ini_parse_file(FILE* file,
                    int (*handler)(void*, const char*, const char*,
                                   const char*),
                    void* user)
@@ -151,7 +168,7 @@ int ini_parse_file(FILE* file,
 #if !INIFILE_USE_STACK
     line = (char*)malloc(INIFILE_MAX_LINE);
     if (!line) {
-        return -2;
+        return (Inifile_result){.error_ = ENOMEM, .optional_line_no_ = 0};
     }
 #endif
 
@@ -229,23 +246,21 @@ int ini_parse_file(FILE* file,
     free(line);
 #endif
 
-    return error;
+    return (Inifile_result){.error_ = 0, .optional_line_no_ = error};
 }
 
 /* See documentation above. */
-int ini_parse(const char* filename,
+Inifile_result ini_parse(const char* filename,
               int (*handler)(void*, const char*, const char*, const char*),
               void* user)
 {
-    FILE* file;
-    int error;
+    FILE* file = {};
 
     file = fopen(filename, "r");
     if (!file)
-        return -1;
-    error = ini_parse_file(file, handler, user);
-    fclose(file);
-    return error;
+        return (Inifile_result){.error_ = ENOENT, .optional_line_no_ = 0};
+    defer { fclose(file); }
+    return ini_parse_file(file, handler, user);
 }
 
 #endif /* INIFILE_IMPLEMENTATION */

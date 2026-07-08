@@ -6,5 +6,10 @@
         "inifile",
         "INIFILE",
         "malloc"
-    ]
+    ],
+    "cSpell.enabledFileTypes": {
+        "c": false,
+        "cpp": false,
+        "bat": false
+    }
 }
