@@ -14,4 +14,4 @@ Thumbs.db
 *.swp
 
 # Local run config (per-machine, not checked in)
-tribute_to_tony/dbj_email_crud.ini
+*.ini
