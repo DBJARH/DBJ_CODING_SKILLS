@@ -128,9 +128,11 @@ TEST(EmailStorage, crud_n_flow) {
                  "failed to load dbj_email_crud.ini");
 
     REQUIRE_TRUE(g_config.number_of_emails >= MIN_EMAILS_STORAGE_LIMIT,
-                 "NUMBER_OF_EMAILS below MIN_EMAILS_STORAGE_LIMIT");
+                 "Ini file: %s , NUMBER_OF_EMAILS %d is smaller than MIN_EMAILS_STORAGE_LIMIT %d",
+                 "dbj_email_crud.ini", g_config.number_of_emails, MIN_EMAILS_STORAGE_LIMIT);
     REQUIRE_TRUE(g_config.number_of_emails <= MAX_EMAILS_STORAGE_LIMIT,
-                 "NUMBER_OF_EMAILS exceeds MAX_EMAILS_STORAGE_LIMIT (EMAIL_STORAGE_CAPACITY)");
+                 "Ini file: %s , NUMBER_OF_EMAILS %d is larger than EMAIL_STORAGE_CAPACITY %d",
+                 "dbj_email_crud.ini", g_config.number_of_emails, EMAIL_STORAGE_CAPACITY);
 
     EmailStorage* db = email_storage_instance();
     int n = g_config.number_of_emails;
