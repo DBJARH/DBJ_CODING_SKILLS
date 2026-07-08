@@ -87,7 +87,16 @@ static const char* g_ini_path = nullptr;
    the real program name (tau_argv[0] below), just not our ini path. */
 int main(const int argc, const char* const* const argv) {
     if (argc < 2) {
-        printf("Usage: %s <ini-file> [tau options]\n", argv[0]);
+        printf("Usage: %s <ini-file> [tau options]\n\n", argv[0]);
+        printf("<ini-file> must exist and look like this:\n\n");
+        printf("    NUMBER_OF_EMAILS = %d .. %d\n", MIN_EMAILS_STORAGE_LIMIT, MAX_EMAILS_STORAGE_LIMIT);
+        printf("    EMAIL_FROM_ADDR = alice@example.com\n");
+        printf("    EMAIL_FROM_SUBJECT = Q1 report\n");
+        printf("    EMAIL_FROM_BODY = Please find attached...\n");
+        printf("    EMAIL_TO_ADDR = bob@example.com\n");
+        printf("    EMAIL_TO_SUBJECT = Meeting notes\n");
+        printf("    EMAIL_TO_BODY = As discussed...\n\n");
+        printf("Current email storage capacity: %d\n", EMAIL_STORAGE_CAPACITY);
         return 1;
     }
     g_ini_path = argv[1];
@@ -174,6 +183,15 @@ TEST(EmailStorage, crud_n_flow) {
     REQUIRE_TRUE(g_config.number_of_emails <= MAX_EMAILS_STORAGE_LIMIT,
                  "Ini file: %s , NUMBER_OF_EMAILS %d is larger than EMAIL_STORAGE_CAPACITY %d",
                  g_ini_path, g_config.number_of_emails, EMAIL_STORAGE_CAPACITY);
+
+    printf("Ini file: %s\n", g_ini_path);
+    printf("    NUMBER_OF_EMAILS = %d\n", g_config.number_of_emails);
+    printf("    EMAIL_FROM_ADDR = %s\n", g_config.from_addr);
+    printf("    EMAIL_FROM_SUBJECT = %s\n", g_config.from_subject);
+    printf("    EMAIL_FROM_BODY = %s\n", g_config.from_body);
+    printf("    EMAIL_TO_ADDR = %s\n", g_config.to_addr);
+    printf("    EMAIL_TO_SUBJECT = %s\n", g_config.to_subject);
+    printf("    EMAIL_TO_BODY = %s\n", g_config.to_body);
 
     EmailStorage* db = email_storage_instance();
     int n = g_config.number_of_emails;

@@ -8,7 +8,7 @@
 */
 
 #ifndef EMAIL_STORAGE_CAPACITY
-#define EMAIL_STORAGE_CAPACITY 1024
+#define EMAIL_STORAGE_CAPACITY 1024 * 1024
 #endif
 
 /* Operational boundaries for any runtime-configured email count (e.g.
