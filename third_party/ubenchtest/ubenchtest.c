@@ -63,6 +63,9 @@ UBENCH(DBJ, prime_1000) {
     EXPECT_LE(result, 7919);
     EXPECT_TRUE(result > 1);
     EXPECT_FALSE(result < 0);
+    /* stops the outer sample loop after the first failure -- see
+       DBJ.sum_first_n_and_check below for why this call matters */
+    UBENCH_ASSERT_SCOPE_CHECK();
 }
 
 UBENCH(DBJ, prime_100) {
@@ -79,6 +82,7 @@ UBENCH(DBJ, prime_100) {
     EXPECT_LE(result, 541);
     EXPECT_TRUE(result > 1);
     EXPECT_FALSE(result < 0);
+    UBENCH_ASSERT_SCOPE_CHECK();
 }
 
 UBENCH(DBJ, prime_10) {
@@ -95,6 +99,7 @@ UBENCH(DBJ, prime_10) {
     EXPECT_LE(result, 29);
     EXPECT_TRUE(result > 1);
     EXPECT_FALSE(result < 0);
+    UBENCH_ASSERT_SCOPE_CHECK();
 }
 
 /* a benchmark that also sanity-checks its own result via assertion
@@ -102,7 +107,8 @@ UBENCH(DBJ, prime_10) {
    this benchmark or abort the run. */
 UBENCH(DBJ, sum_first_n_and_check) {
     ENABLE_UBNCH_ASSERT_MACROS();
-    EXPECT_EQ(true, false); // this will print on each one of many external loops
+    EXPECT_EQ(true, false);
+    UBENCH_ASSERT_SCOPE_CHECK();
 }
 
 int main(const int argc, const char *const argv[static argc + 1]) {
