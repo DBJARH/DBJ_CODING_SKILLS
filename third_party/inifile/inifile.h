@@ -48,6 +48,14 @@ extern "C" {
 #define INIFILE_MAX_LINE 200
 #endif
 
+/* Storage size for the section/name buffers the handler callback is
+   called with -- declared here (not just in the implementation block)
+   so the [static N] contract on the handler's parameters below is
+   visible to every includer, not only the translation unit that
+   defines INIFILE_IMPLEMENTATION. */
+#define MAX_SECTION 50
+#define MAX_NAME 50
+
 /* Parse given INI-style file. May have [section]s, name=value pairs
    (whitespace stripped), and comments starting with ';' (semicolon). Section
    is "" if name=value pair parsed before any section heading. name:value
@@ -74,17 +82,20 @@ extern "C" {
        int          optional_line_no_ ;
    } Inifile_result ;
 
+
 Inifile_result ini_parse(const char* filename,
-              int (*handler)(void* user, const char* section,
-                             const char* name, const char* value),
+              int (*handler)(void* user, const char section[static MAX_SECTION],
+                             const char name[static MAX_NAME],
+                             const char value[static INIFILE_MAX_LINE]),
               void* user);
 
 /* Same as ini_parse(), but takes an already-open FILE* instead of a
    filename, and -- unlike ini_parse(), which opens and closes the file
    itself -- never closes it; the caller opened it, the caller closes it. */
 Inifile_result ini_parse_file(FILE* file,
-                   int (*handler)(void* user, const char* section,
-                                  const char* name, const char* value),
+                   int (*handler)(void* user, const char section[static MAX_SECTION],
+                                  const char name[static MAX_NAME],
+                                  const char value[static INIFILE_MAX_LINE]),
                    void* user);
 
 #ifdef __cplusplus
@@ -101,9 +112,6 @@ Inifile_result ini_parse_file(FILE* file,
 #if !INIFILE_USE_STACK
 #include <stdlib.h>
 #endif
-
-#define MAX_SECTION 50
-#define MAX_NAME 50
 
 /* Strip whitespace chars off end of given string, in place. Return s. */
 static char* rstrip(char* s)
@@ -145,25 +153,26 @@ static char* strncpy0(char* dest, const char* src, size_t size)
 
 /* See documentation in header file. */
 Inifile_result ini_parse_file(FILE* file,
-                   int (*handler)(void*, const char*, const char*,
-                                  const char*),
+                   int (*handler)(void*, const char[static MAX_SECTION],
+                                  const char[static MAX_NAME],
+                                  const char[static INIFILE_MAX_LINE]),
                    void* user)
 {
     /* Uses a fair bit of stack (use heap instead if you need to) */
 #if INIFILE_USE_STACK
-    char line[INIFILE_MAX_LINE];
+    char line[INIFILE_MAX_LINE] = {};
 #else
-    char* line;
+    char* line = {};
 #endif
     char section[MAX_SECTION] = "";
     char prev_name[MAX_NAME] = "";
 
-    char* start;
-    char* end;
-    char* name;
-    char* value;
-    int lineno = 0;
-    int error = 0;
+    char* start = {};
+    char* end = {};
+    char* name = {};
+    char* value = {};
+    int lineno = {};
+    int error = {};
 
 #if !INIFILE_USE_STACK
     line = (char*)malloc(INIFILE_MAX_LINE);
@@ -251,7 +260,9 @@ Inifile_result ini_parse_file(FILE* file,
 
 /* See documentation above. */
 Inifile_result ini_parse(const char* filename,
-              int (*handler)(void*, const char*, const char*, const char*),
+              int (*handler)(void*, const char[static MAX_SECTION],
+                             const char[static MAX_NAME],
+                             const char[static INIFILE_MAX_LINE]),
               void* user)
 {
     FILE* file = {};

@@ -6,7 +6,7 @@ TARGET  := dbj_email_crud
 
 all: $(TARGET)
 
-$(TARGET): dbj_email_crud.c dbj_email_record.h dbj_email_storage_result.h dbj_email_storage.h ../toplevel/simple_log.h
+$(TARGET): dbj_email_crud.c dbj_email_record.h dbj_email_storage_result.h dbj_email_storage.h ../toplevel/simple_log.h ../third_party/inifile/inifile.h dbj_email_crud.ini
 	$(CC) $(CFLAGS) -o $(TARGET) dbj_email_crud.c
 
 run: $(TARGET)

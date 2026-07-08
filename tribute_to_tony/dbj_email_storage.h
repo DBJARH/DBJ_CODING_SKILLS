@@ -8,8 +8,15 @@
 */
 
 #ifndef EMAIL_STORAGE_CAPACITY
-#define EMAIL_STORAGE_CAPACITY 0xF
+#define EMAIL_STORAGE_CAPACITY 1024
 #endif
+
+/* Operational boundaries for any runtime-configured email count (e.g.
+   NUMBER_OF_EMAILS from an ini file) -- callers should validate against
+   these before creating that many emails, rather than discovering the
+   ceiling only when CreateEmail starts returning "storage full". */
+#define MIN_EMAILS_STORAGE_LIMIT 1
+#define MAX_EMAILS_STORAGE_LIMIT EMAIL_STORAGE_CAPACITY
 
 typedef struct EmailStorage EmailStorage;
 
