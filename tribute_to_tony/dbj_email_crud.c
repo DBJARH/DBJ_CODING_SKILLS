@@ -124,8 +124,12 @@ static void format_subject_with_seq(char dest[static EMAIL_RECORD_SUBJECT_SIZE],
 
 TEST(EmailStorage, crud_n_flow) {
     Inifile_result ini_result = ini_parse("dbj_email_crud.ini", ini_config_handler, &g_config);
+    REQUIRE_TRUE(ini_result.error_ != ENOENT,
+                 "Ini file: dbj_email_crud.ini not found -- this test needs it "
+                 "next to the executable, see dbj_email_crud.c for its format");
     REQUIRE_TRUE(ini_result.error_ == 0 && ini_result.optional_line_no_ == 0,
-                 "failed to load dbj_email_crud.ini");
+                 "Ini file: dbj_email_crud.ini failed to load (error_=%d, line=%d)",
+                 ini_result.error_, ini_result.optional_line_no_);
 
     REQUIRE_TRUE(g_config.number_of_emails >= MIN_EMAILS_STORAGE_LIMIT,
                  "Ini file: %s , NUMBER_OF_EMAILS %d is smaller than MIN_EMAILS_STORAGE_LIMIT %d",
