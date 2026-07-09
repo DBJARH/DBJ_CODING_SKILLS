@@ -71,6 +71,7 @@
 #include "../third_party/inifile/inifile.h"
 
 #include <tau/tau.h>
+#include <tau/tau_bench.h>
 TAU_NO_MAIN()
 
 /* ── config, loaded once from the ini file named on the command line ── */
@@ -86,6 +87,8 @@ static const char* g_ini_path = nullptr;
    aborts on the first one it does not recognize. tau_argv0_ still gets
    the real program name (tau_argv[0] below), just not our ini path. */
 int main(const int argc, const char* const* const argv) {
+    printf("Built: %s %s\n\n", __DATE__, __TIME__);
+
     if (argc < 2) {
         printf("Usage: %s <ini-file> [tau options]\n\n", argv[0]);
         printf("<ini-file> must exist and look like this:\n\n");
@@ -165,82 +168,119 @@ static void format_subject_with_seq(char dest[static EMAIL_RECORD_SUBJECT_SIZE],
 #pragma GCC diagnostic pop
 }
 
-TEST(EmailStorage, crud_n_flow) {
-    REQUIRE_TRUE(g_ini_path != nullptr, "no ini file given on the command line");
+/* ── one phase per CRUD verb, kept as plain helpers (not TEST cases) so
+   they can share g_ids across calls -- see the file header comment on
+   why crud_n_flow is one TEST, not four. ── */
 
-    Inifile_result ini_result = ini_parse(g_ini_path, ini_config_handler, &g_config);
+static void load_and_validate_config(const char* ini_path, EmailCrudConfig* cfg) {
+    REQUIRE_TRUE(ini_path != nullptr, "no ini file given on the command line");
+
+    Inifile_result ini_result = ini_parse(ini_path, ini_config_handler, cfg);
     REQUIRE_TRUE(ini_result.error_ != ENOENT,
                  "Ini file: %s not found -- pass an existing ini file as the "
                  "first command line argument, see dbj_email_crud.c for its format",
-                 g_ini_path);
+                 ini_path);
     REQUIRE_TRUE(ini_result.error_ == 0 && ini_result.optional_line_no_ == 0,
                  "Ini file: %s failed to load (error_=%d, line=%d)",
-                 g_ini_path, ini_result.error_, ini_result.optional_line_no_);
+                 ini_path, ini_result.error_, ini_result.optional_line_no_);
 
-    REQUIRE_TRUE(g_config.number_of_emails >= MIN_EMAILS_STORAGE_LIMIT,
+    REQUIRE_TRUE(cfg->number_of_emails >= MIN_EMAILS_STORAGE_LIMIT,
                  "Ini file: %s , NUMBER_OF_EMAILS %d is smaller than MIN_EMAILS_STORAGE_LIMIT %d",
-                 g_ini_path, g_config.number_of_emails, MIN_EMAILS_STORAGE_LIMIT);
-    REQUIRE_TRUE(g_config.number_of_emails <= MAX_EMAILS_STORAGE_LIMIT,
+                 ini_path, cfg->number_of_emails, MIN_EMAILS_STORAGE_LIMIT);
+    REQUIRE_TRUE(cfg->number_of_emails <= MAX_EMAILS_STORAGE_LIMIT,
                  "Ini file: %s , NUMBER_OF_EMAILS %d is larger than EMAIL_STORAGE_CAPACITY %d",
-                 g_ini_path, g_config.number_of_emails, EMAIL_STORAGE_CAPACITY);
+                 ini_path, cfg->number_of_emails, EMAIL_STORAGE_CAPACITY);
 
-    printf("Ini file: %s\n", g_ini_path);
-    printf("    NUMBER_OF_EMAILS = %d\n", g_config.number_of_emails);
-    printf("    EMAIL_FROM_ADDR = %s\n", g_config.from_addr);
-    printf("    EMAIL_FROM_SUBJECT = %s\n", g_config.from_subject);
-    printf("    EMAIL_FROM_BODY = %s\n", g_config.from_body);
-    printf("    EMAIL_TO_ADDR = %s\n", g_config.to_addr);
-    printf("    EMAIL_TO_SUBJECT = %s\n", g_config.to_subject);
-    printf("    EMAIL_TO_BODY = %s\n", g_config.to_body);
+    printf("Ini file: %s\n", ini_path);
+    printf("    NUMBER_OF_EMAILS = %d\n", cfg->number_of_emails);
+    printf("    EMAIL_FROM_ADDR = %s\n", cfg->from_addr);
+    printf("    EMAIL_FROM_SUBJECT = %s\n", cfg->from_subject);
+    printf("    EMAIL_FROM_BODY = %s\n", cfg->from_body);
+    printf("    EMAIL_TO_ADDR = %s\n", cfg->to_addr);
+    printf("    EMAIL_TO_SUBJECT = %s\n", cfg->to_subject);
+    printf("    EMAIL_TO_BODY = %s\n", cfg->to_body);
+}
 
-    EmailStorage* db = email_storage_instance();
-    int n = g_config.number_of_emails;
-
-    /* CREATE */
-    SIMPLE_LOG("create_n: starting");
+static void create_n(EmailStorage* db, const EmailCrudConfig* cfg,
+                      int n, EmailId ids[static n]) {
     for (int i = 0; i < n; i++) {
         EmailRecord record = {};
-        snprintf(record.from, sizeof record.from, "%s", g_config.from_addr);
-        snprintf(record.to, sizeof record.to, "%s", g_config.to_addr);
+        snprintf(record.from, sizeof record.from, "%s", cfg->from_addr);
+        snprintf(record.to, sizeof record.to, "%s", cfg->to_addr);
         format_subject_with_seq(record.subject, sizeof record.subject,
-                                 g_config.from_subject, i);
-        snprintf(record.body, sizeof record.body, "%s", g_config.from_body);
+                                 cfg->from_subject, i);
+        snprintf(record.body, sizeof record.body, "%s", cfg->from_body);
 
         EmailStorageResult r = db->CreateEmail(record);
         REQUIRE_TRUE(r.tag == EMAIL_STORAGE_OK, "CREATE failed mid-sequence");
-        g_ids[i] = r.ok.record.record_id;
+        ids[i] = r.ok.record.record_id;
     }
-    SIMPLE_LOG("create_n: finished, created %d emails", n);
+}
 
-    /* READ */
-    SIMPLE_LOG("read_n: starting");
+static void read_n(EmailStorage* db, int n, const EmailId ids[static n]) {
     for (int i = 0; i < n; i++) {
-        EmailStorageResult r = db->ReadEmail(g_ids[i]);
+        EmailStorageResult r = db->ReadEmail(ids[i]);
         CHECK_TRUE(r.tag == EMAIL_STORAGE_OK, "READ failed mid-sequence");
     }
-    SIMPLE_LOG("read_n: finished, read %d emails", n);
+}
 
-    /* UPDATE */
-    SIMPLE_LOG("update_n: starting");
+static void update_n(EmailStorage* db, const EmailCrudConfig* cfg,
+                      int n, const EmailId ids[static n]) {
     for (int i = 0; i < n; i++) {
         EmailRecord record = {};
-        record.record_id = g_ids[i];
-        snprintf(record.from, sizeof record.from, "%s", g_config.from_addr);
-        snprintf(record.to, sizeof record.to, "%s", g_config.to_addr);
+        record.record_id = ids[i];
+        snprintf(record.from, sizeof record.from, "%s", cfg->from_addr);
+        snprintf(record.to, sizeof record.to, "%s", cfg->to_addr);
         format_subject_with_seq(record.subject, sizeof record.subject,
-                                 g_config.to_subject, i);
-        snprintf(record.body, sizeof record.body, "%s", g_config.to_body);
+                                 cfg->to_subject, i);
+        snprintf(record.body, sizeof record.body, "%s", cfg->to_body);
 
         EmailStorageResult r = db->UpdateEmail(record);
         CHECK_TRUE(r.tag == EMAIL_STORAGE_OK, "UPDATE failed mid-sequence");
     }
-    SIMPLE_LOG("update_n: finished, updated %d emails", n);
+}
 
-    /* DELETE */
-    SIMPLE_LOG("delete_n: starting");
+static void delete_n(EmailStorage* db, int n, const EmailId ids[static n]) {
     for (int i = 0; i < n; i++) {
-        EmailStorageResult r = db->DeleteEmail(g_ids[i]);
+        EmailStorageResult r = db->DeleteEmail(ids[i]);
         CHECK_TRUE(r.tag == EMAIL_STORAGE_OK, "DELETE failed mid-sequence");
     }
-    SIMPLE_LOG("delete_n: finished, deleted %d emails", n);
+}
+
+#define DBJ_TEXT_LINE SIMPLE_LOG("---------------------------------------------------------")
+
+TEST(DBJ_EMAIL_CRUD, TEST) {
+    DBJ_TEXT_LINE;
+    load_and_validate_config(g_ini_path, &g_config);
+
+    EmailStorage* db = email_storage_instance();
+    int n = g_config.number_of_emails;
+
+    DBJ_TEXT_LINE;
+    SIMPLE_LOG("create_n: starting");
+    DBJ_TAU_START_TIMER(create);
+    create_n(db, &g_config, n, g_ids);
+    SIMPLE_LOG("create_n: finished, created %d emails, elapsed %.2fms",
+               n, DBJ_TAU_ELAPSED(create) / 1e6);
+
+    DBJ_TEXT_LINE;
+    SIMPLE_LOG("read_n: starting");
+    DBJ_TAU_START_TIMER(read);
+    read_n(db, n, g_ids);
+    SIMPLE_LOG("read_n: finished, read %d emails, elapsed %.2fms",
+               n, DBJ_TAU_ELAPSED(read) / 1e6);
+
+    DBJ_TEXT_LINE;
+    SIMPLE_LOG("update_n: starting");
+    DBJ_TAU_START_TIMER(update);
+    update_n(db, &g_config, n, g_ids);
+    SIMPLE_LOG("update_n: finished, updated %d emails, elapsed %.2fms",
+               n, DBJ_TAU_ELAPSED(update) / 1e6);
+
+    DBJ_TEXT_LINE;
+    SIMPLE_LOG("delete_n: starting");
+    DBJ_TAU_START_TIMER(delete);
+    delete_n(db, n, g_ids);
+    SIMPLE_LOG("delete_n: finished, deleted %d emails, elapsed %.2fms",
+               n, DBJ_TAU_ELAPSED(delete) / 1e6);
 }
