@@ -249,6 +249,21 @@ static void delete_n(EmailStorage* db, int n, const EmailId ids[static n]) {
 
 #define DBJ_TEXT_LINE SIMPLE_LOG("---------------------------------------------------------")
 
+/* Runs one CRUD phase, logging start/finish and elapsed time around it.
+   `timer` is a bare identifier (token-pasted by DBJ_TAU_START_TIMER/
+   DBJ_TAU_ELAPSED and stringized here for the phase name); `verb_ed` is
+   the past-tense verb for the finish line, e.g. "created". One place
+   owns the log/timer format instead of one copy per phase. */
+#define RUN_PHASE(timer, verb_ed, count, call)                              \
+    do {                                                                    \
+        DBJ_TEXT_LINE;                                                      \
+        SIMPLE_LOG(#timer "_n: starting");                                  \
+        DBJ_TAU_START_TIMER(timer);                                         \
+        call;                                                               \
+        SIMPLE_LOG(#timer "_n: finished, " verb_ed " %d emails, elapsed %.2fms", \
+                   count, DBJ_TAU_ELAPSED(timer) / 1e6);                    \
+    } while (0)
+
 TEST(DBJ_EMAIL_CRUD, TEST) {
     DBJ_TEXT_LINE;
     load_and_validate_config(g_ini_path, &g_config);
@@ -256,31 +271,8 @@ TEST(DBJ_EMAIL_CRUD, TEST) {
     EmailStorage* db = email_storage_instance();
     int n = g_config.number_of_emails;
 
-    DBJ_TEXT_LINE;
-    SIMPLE_LOG("create_n: starting");
-    DBJ_TAU_START_TIMER(create);
-    create_n(db, &g_config, n, g_ids);
-    SIMPLE_LOG("create_n: finished, created %d emails, elapsed %.2fms",
-               n, DBJ_TAU_ELAPSED(create) / 1e6);
-
-    DBJ_TEXT_LINE;
-    SIMPLE_LOG("read_n: starting");
-    DBJ_TAU_START_TIMER(read);
-    read_n(db, n, g_ids);
-    SIMPLE_LOG("read_n: finished, read %d emails, elapsed %.2fms",
-               n, DBJ_TAU_ELAPSED(read) / 1e6);
-
-    DBJ_TEXT_LINE;
-    SIMPLE_LOG("update_n: starting");
-    DBJ_TAU_START_TIMER(update);
-    update_n(db, &g_config, n, g_ids);
-    SIMPLE_LOG("update_n: finished, updated %d emails, elapsed %.2fms",
-               n, DBJ_TAU_ELAPSED(update) / 1e6);
-
-    DBJ_TEXT_LINE;
-    SIMPLE_LOG("delete_n: starting");
-    DBJ_TAU_START_TIMER(delete);
-    delete_n(db, n, g_ids);
-    SIMPLE_LOG("delete_n: finished, deleted %d emails, elapsed %.2fms",
-               n, DBJ_TAU_ELAPSED(delete) / 1e6);
+    RUN_PHASE(create, "created", n, create_n(db, &g_config, n, g_ids));
+    RUN_PHASE(read,   "read",    n, read_n(db, n, g_ids));
+    RUN_PHASE(update, "updated", n, update_n(db, &g_config, n, g_ids));
+    RUN_PHASE(delete, "deleted", n, delete_n(db, n, g_ids));
 }
