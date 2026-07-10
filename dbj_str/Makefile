@@ -1,6 +1,13 @@
-CC      := gcc
 CFLAGS  := -std=c2x -Wall -Wswitch -Werror -I ../third_party/tau
 TARGET  := dbj_str_test
+
+# Windows/MinGW ships plain gcc.exe (gcc 15+); Linux distros still default
+# `gcc` to an older version, so pin the versioned binary there.
+ifeq ($(OS),Windows_NT)
+CC      := gcc
+else
+CC      := gcc-15
+endif
 
 .PHONY: all run clean
 

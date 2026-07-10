@@ -18,6 +18,14 @@ extern "C" {
 #include <stdio.h>
 #include <errno.h>
 
+/* errno_t comes from the Windows/MSVC CRT (and MinGW, which reuses it).
+   glibc has no Annex K support and never defines it, so supply the same
+   underlying type here, guarded by the CRT's own include-guard macro. */
+#if !defined(_WIN32) && !defined(_ERRNO_T_DEFINED)
+#define _ERRNO_T_DEFINED
+typedef int errno_t;
+#endif
+
 #include "../../toplevel/defer.h"
 
 /* Nonzero to allow multi-line value parsing, in the style of Python's
