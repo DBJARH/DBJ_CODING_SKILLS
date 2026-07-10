@@ -15,3 +15,9 @@ Thumbs.db
 
 # Local run config (per-machine, not checked in)
 *.ini
+
+# Compilation output (every Makefile builds into builds/ at repo root)
+/builds/
+
+# Claude Code local tool config
+.claude/
