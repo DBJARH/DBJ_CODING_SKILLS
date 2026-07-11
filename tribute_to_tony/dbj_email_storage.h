@@ -18,10 +18,27 @@
 #define MIN_EMAILS_STORAGE_LIMIT 1
 #define MAX_EMAILS_STORAGE_LIMIT EMAIL_STORAGE_CAPACITY
 
+/* No free-slot value can be a valid array index (indices are
+   0..CAPACITY-1), so CAPACITY itself is safe to use as the "no free
+   slot" sentinel on the free list. */
+#define EMAIL_STORAGE_FREE_LIST_EMPTY EMAIL_STORAGE_CAPACITY
+
 typedef struct EmailStorage EmailStorage;
 
 struct EmailStorage {
     EmailRecord records[EMAIL_STORAGE_CAPACITY];
+
+    /* record_id is always (slot index + 1) -- see email_storage_create.
+       A deleted slot is pushed onto this free list and its index is
+       reissued to the next CreateEmail, so an EmailId is only a stable
+       identity while the record is live: after delete, that same id
+       value will be reused by whatever record lands in the slot next.
+       next_free_slot[i] is only meaningful while slot i is on the free
+       list (i.e. records[i].record_id == EMAIL_ID_EMPTY). */
+    size_t next_free_slot[EMAIL_STORAGE_CAPACITY];
+    size_t free_list_head;   /* EMAIL_STORAGE_FREE_LIST_EMPTY if none free */
+    size_t high_water_mark;  /* count of slots ever occupied at least once */
+    size_t live_count;       /* records currently in storage (create - delete) */
 
     EmailStorageResult (*CreateEmail)(EmailRecord record);
     EmailStorageResult (*ReadEmail)(EmailId id);
@@ -56,19 +73,19 @@ EmailStorage* create_email_storage_instance(void);
  * Synopsys 1 (dbj_discriminated_union.md) drops `self` from every CRUD
  * verb, so the CRUD functions below close over this single
  * module-level instance instead of receiving storage as a parameter.
+ * free_list_head starts at EMAIL_STORAGE_FREE_LIST_EMPTY (0-init would
+ * wrongly mean "slot 0 is free"), so it is set explicitly in
+ * create_email_storage_instance rather than relying on static
+ * zero-initialization.
  */
 static EmailStorage email_storage_singleton;
 
 /*
- * record_id is the array index, one-based (0 is EMAIL_ID_EMPTY). No
- * empty-slot scan is needed: email_storage_next_id only ever grows, so
- * a deleted slot is retired, never handed back out — see the "no
- * reuse" call in dbj_discriminated_union.md's discussion.
- * 
- * DBJ 2026-07-07
- * If and when we change to re use freed slots we will maintain a 
- * single linked list of free slots, again faster than walking from 0
- * trying to find empty slot
+ * record_id is always (slot index + 1) -- one-based, so 0 stays free
+ * for EMAIL_ID_EMPTY. A live slot's occupancy is exactly
+ * records[id-1].record_id == id: an empty/never-used slot is
+ * zero-initialized (record_id == EMAIL_ID_EMPTY) and a freed slot is
+ * reset to EMPTY_EMAIL_RECORD on delete, so neither can match a real id.
  */
 static EmailRecord* email_storage_find_by_id(EmailId id) {
     assert(id != EMAIL_ID_EMPTY && "email_storage_find_by_id called with empty id");
@@ -77,15 +94,30 @@ static EmailRecord* email_storage_find_by_id(EmailId id) {
     return slot->record_id == id ? slot : nullptr;
 }
 
-static EmailId email_storage_next_id = 0x01;
-
+/*
+ * Slot for the new record comes from the free list first (a delete's
+ * leftover slot, reused so churn doesn't burn through capacity), and
+ * only once that's empty from a never-before-used slot at
+ * high_water_mark. Either way record_id = slot index + 1, so ids are
+ * reused whenever their slot is: an EmailId is only a stable identity
+ * while its record is live, not forever -- see the free list comment
+ * on EmailStorage.
+ */
 static EmailStorageResult email_storage_create(EmailRecord record) {
-    if (email_storage_next_id > EMAIL_STORAGE_CAPACITY)
+    size_t slot;
+    if (email_storage_singleton.free_list_head != EMAIL_STORAGE_FREE_LIST_EMPTY) {
+        slot = email_storage_singleton.free_list_head;
+        email_storage_singleton.free_list_head = email_storage_singleton.next_free_slot[slot];
+    } else if (email_storage_singleton.high_water_mark < EMAIL_STORAGE_CAPACITY) {
+        slot = email_storage_singleton.high_water_mark++;
+    } else {
         return email_storage_result_err(__func__, "storage full");
-    record.record_id = email_storage_next_id++;
-    EmailRecord* slot = &email_storage_singleton.records[record.record_id - 1];
-    *slot = record;
-    return email_storage_result_ok(*slot);
+    }
+
+    record.record_id = slot + 1;
+    email_storage_singleton.records[slot] = record;
+    email_storage_singleton.live_count++;
+    return email_storage_result_ok(record);
 }
 
 static EmailStorageResult email_storage_read(EmailId id) {
@@ -104,19 +136,34 @@ static EmailStorageResult email_storage_update(EmailRecord record) {
 }
 
 /**
- * DBJ 2026-07-07 
+ * DBJ 2026-07-07
  * on success we return an deleted record
  */
 static EmailStorageResult email_storage_delete(EmailId id) {
     EmailRecord* slot = email_storage_find_by_id(id);
     if (!slot)
         return email_storage_result_err(__func__, "not found");
+
     EmailRecord deleted = *slot;
     *slot = EMPTY_EMAIL_RECORD;
+
+    size_t slot_index = id - 1;
+    email_storage_singleton.next_free_slot[slot_index] = email_storage_singleton.free_list_head;
+    email_storage_singleton.free_list_head = slot_index;
+    email_storage_singleton.live_count--;
+
     return email_storage_result_ok(deleted);
 }
 
 EmailStorage* create_email_storage_instance(void) {
+    /* free_list_head's zero-init value (0) would wrongly mean "slot 0
+       is free", so it needs one real initialization to
+       EMAIL_STORAGE_FREE_LIST_EMPTY -- guarded by CreateEmail being
+       unset, so a second call (still allowed, see the doc comment
+       above the declaration) re-wires the function pointers without
+       stomping on free-list state already built up by real CRUD use. */
+    if (!email_storage_singleton.CreateEmail)
+        email_storage_singleton.free_list_head = EMAIL_STORAGE_FREE_LIST_EMPTY;
     email_storage_singleton.CreateEmail = email_storage_create;
     email_storage_singleton.ReadEmail   = email_storage_read;
     email_storage_singleton.UpdateEmail = email_storage_update;

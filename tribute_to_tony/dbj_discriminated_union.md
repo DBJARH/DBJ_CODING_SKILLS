@@ -41,11 +41,32 @@ sequenceDiagram
 
 ## **EmailRecord**
 
-- `EmailRecord` is the central, tagged type. 
-  - Storage is an logical array of `EmailRecord`s
-    - We consider this a specialized storage for `EmailRecords`s
-    - `EmailRecord` ID is index on that array
-      - we keep this ID also in the record itself for quick retrieval
+- `EmailRecord` is the central, tagged type.
+  - Storage is a logical array of `EmailRecord`s, plus a singly-linked
+    free list threaded through the same array for slot reuse
+    - We consider this a specialized storage for `EmailRecord`s
+    - `EmailRecord.record_id` is always (array index + 1) — one-based,
+      so id `0` (`EMAIL_ID_EMPTY`) stays reserved for "empty slot" and
+      is never assigned to a real record
+      - a deleted slot is pushed onto the free list and its index is
+        reissued to the next `CreateEmail`, so **ids are reused**: an
+        `EmailId` is only a stable identity while its record is live,
+        not a permanent one — after delete, that numeric id will come
+        back attached to a different record once its slot is reused
+      - this bounds capacity by *live* records, not by total creates
+        ever made — churn (create/delete/create/...) does not burn
+        through `EMAIL_STORAGE_CAPACITY`
+
+```mermaid
+graph LR
+    subgraph EmailStorage
+        R1["records[0] id=1 (live)"]
+        R2["records[1] id=2 (live)"]
+        R3["records[2] EMPTY (free)"]
+        R4["records[3] EMPTY (free)"]
+    end
+    free_list_head --> R4 -. next_free_slot .-> R3
+```
 
 **Synopsys**
 
@@ -164,6 +185,17 @@ in any case it is not a good practice to leave it to the users how will be the s
 
 **EmailStorage API Synopsys 1**
 
+Storage is a fixed `records[EMAIL_STORAGE_CAPACITY]` array, exactly as
+in Synopsys 0, plus a singly-linked free list threaded through it via
+`next_free_slot` — so CRUD stays O(1) (direct index by
+`record_id - 1`), with no heap allocation. `record_id` is always (slot
+index + 1); a deleted slot's index goes onto `free_list_head` and is
+reissued to the next `CreateEmail`, so churn (create/delete/create/...)
+reuses slots instead of exhausting `high_water_mark` toward
+`EMAIL_STORAGE_CAPACITY`. `live_count` is the number of records
+currently in storage (up on create, down on delete) — distinct from
+`high_water_mark`, the count of slots ever occupied at least once.
+
 ```c
 typedef struct EmailStorage EmailStorage;
 
@@ -172,6 +204,11 @@ typedef struct EmailStorage EmailStorage;
 
 struct EmailStorage {
     EmailRecord records[/* capacity */];
+
+    size_t next_free_slot[/* capacity */]; /* free-list links, by index */
+    size_t free_list_head;                 /* or "empty" sentinel */
+    size_t high_water_mark;                /* slots ever occupied */
+    size_t live_count;                     /* records in storage now */
 
     EmailStorageResult (*CreateEmail)( EmailRecord record);
     EmailStorageResult (*ReadEmail)( EmailId id);

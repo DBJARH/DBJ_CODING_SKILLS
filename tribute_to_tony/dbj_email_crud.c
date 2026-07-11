@@ -79,13 +79,17 @@ TAU_NO_MAIN()
    dbj_email_storage.h -- they are the storage module's own operational
    boundaries, not something this test file should define locally. */
 
-static const char* g_ini_path = nullptr;
+static char g_ini_path[BUFSIZ] = {};
 
 /* argv[0] is the program name, argv[1] is our ini path -- neither is a
    tau option, so both are stripped before argc/argv reach tau_main(),
    which otherwise treats every argument as one of its own --flags and
    aborts on the first one it does not recognize. tau_argv0_ still gets
-   the real program name (tau_argv[0] below), just not our ini path. */
+   the real program name (tau_argv[0] below), just not our ini path.
+
+   Copies argv[1] with a plain snprintf, not DBJ_SNPRINTF below: that
+   macro's REQUIRE_TRUE expands to a bare `return;` on failure, which is
+   invalid in a function returning int like this one. */
 int main(const int argc, const char* const* const argv) {
     printf("Built: %s %s\n\n", __DATE__, __TIME__);
 
@@ -102,7 +106,11 @@ int main(const int argc, const char* const* const argv) {
         printf("Current email storage capacity: %d\n", EMAIL_STORAGE_CAPACITY);
         return 1;
     }
-    g_ini_path = argv[1];
+    int ini_path_ret_ = snprintf(g_ini_path, sizeof g_ini_path, "%s", argv[1]);
+    if (ini_path_ret_ < 0 || (size_t)ini_path_ret_ >= sizeof g_ini_path) {
+        printf("ini file path truncated or failed to copy: %s\n", argv[1]);
+        return 1;
+    }
 
     const char* tau_argv[argc - 1];
     tau_argv[0] = argv[0];
@@ -122,7 +130,7 @@ typedef struct {
     char to_body[EMAIL_RECORD_BODY_SIZE];
 } EmailCrudConfig;
 
-static EmailCrudConfig g_config = {};
+static EmailCrudConfig g_email_crud_config = {};
 
 /* ── N ids created by create_n, reused by read_n/update_n/delete_n ── */
 
@@ -135,7 +143,7 @@ static EmailId g_ids[EMAIL_STORAGE_CAPACITY] = {};
    void-returning function: REQUIRE_TRUE expands to a bare `return;` on
    failure, so it cannot be used inside ini_config_handler below (which
    returns int) -- see DBJ_SNPRINTF_HANDLER_REQUIRE for that case. */
-#define DBJ_SNPRINTF_REQUIRE(dest, size, ...)                                       \
+#define DBJ_SNPRINTF(dest, size, ...)                                       \
     do {                                                                            \
         int dbj_snprintf_ret_ = snprintf((dest), (size), __VA_ARGS__);              \
         REQUIRE_TRUE(dbj_snprintf_ret_ >= 0 && (size_t)dbj_snprintf_ret_ < (size),  \
@@ -196,7 +204,7 @@ static void format_subject_with_seq(char dest[static EMAIL_RECORD_SUBJECT_SIZE],
 
 /* ── one phase per CRUD verb, kept as plain helpers (not TEST cases) so
    they can share g_ids across calls -- see the file header comment on
-   why crud_n_flow is one TEST, not four. Each reaches g_config/g_ids/
+   why crud_n_flow is one TEST, not four. Each reaches g_email_crud_config/g_ids/
    storage_instance() directly rather than taking them as params: there
    is exactly one caller (the TEST below) and those three are already
    file-scope singletons, so threading them through as parameters would
@@ -215,7 +223,9 @@ static EmailStorage* storage_instance(void) {
     static EmailStorage* singleton_ = nullptr;
     if (!singleton_)
         singleton_ = create_email_storage_instance();
-    return singleton_;
+// function call is not allowed in a constant expression C/C++(59)
+// static EmailStorage* singleton_ = create_email_storage_instance();
+        return singleton_;
 }
 
 static void load_and_validate_config(const char* ini_path, EmailCrudConfig* cfg) {
@@ -251,11 +261,11 @@ static void create_n(int number_of_emails) {
     EmailStorage* db = storage_instance();
     EmailRecord   record = {};
     for (int i = 0; i < number_of_emails; i++) {
-        DBJ_SNPRINTF_REQUIRE(record.from, sizeof record.from, "%s", g_config.from_addr);
-        DBJ_SNPRINTF_REQUIRE(record.to, sizeof record.to, "%s", g_config.to_addr);
+        DBJ_SNPRINTF(record.from, sizeof record.from, "%s", g_email_crud_config.from_addr);
+        DBJ_SNPRINTF(record.to, sizeof record.to, "%s", g_email_crud_config.to_addr);
         format_subject_with_seq(record.subject, sizeof record.subject,
-                                 g_config.from_subject, i);
-        DBJ_SNPRINTF_REQUIRE(record.body, sizeof record.body, "%s", g_config.from_body);
+                                 g_email_crud_config.from_subject, i);
+        DBJ_SNPRINTF(record.body, sizeof record.body, "%s", g_email_crud_config.from_body);
 
         EmailStorageResult r = db->CreateEmail(record);
         REQUIRE_TRUE(r.tag == EMAIL_STORAGE_OK, "CREATE failed mid-sequence");
@@ -265,8 +275,8 @@ static void create_n(int number_of_emails) {
 
 static void read_n(int number_of_emails) {
     EmailStorage* db = storage_instance();
-    for (int i = 0; i < number_of_emails; i++) {
-        EmailStorageResult r = db->ReadEmail(g_ids[i]);
+    for (int email_id = 0; email_id < number_of_emails; email_id++) {
+        EmailStorageResult r = db->ReadEmail(  email_id + 1 /*g_ids[i]*/ );
         CHECK_TRUE(r.tag == EMAIL_STORAGE_OK, "READ failed mid-sequence");
     }
 }
@@ -276,11 +286,11 @@ static void update_n(int number_of_emails) {
     EmailRecord   record = {};
     for (int i = 0; i < number_of_emails; i++) {
         record.record_id = g_ids[i];
-        DBJ_SNPRINTF_REQUIRE(record.from, sizeof record.from, "%s", g_config.from_addr);
-        DBJ_SNPRINTF_REQUIRE(record.to, sizeof record.to, "%s", g_config.to_addr);
+        DBJ_SNPRINTF(record.from, sizeof record.from, "%s", g_email_crud_config.from_addr);
+        DBJ_SNPRINTF(record.to, sizeof record.to, "%s", g_email_crud_config.to_addr);
         format_subject_with_seq(record.subject, sizeof record.subject,
-                                 g_config.to_subject, i);
-        DBJ_SNPRINTF_REQUIRE(record.body, sizeof record.body, "%s", g_config.to_body);
+                                 g_email_crud_config.to_subject, i);
+        DBJ_SNPRINTF(record.body, sizeof record.body, "%s", g_email_crud_config.to_body);
 
         EmailStorageResult r = db->UpdateEmail(record);
         CHECK_TRUE(r.tag == EMAIL_STORAGE_OK, "UPDATE failed mid-sequence");
@@ -299,27 +309,28 @@ static void delete_n(int number_of_emails) {
 
 /* Runs one CRUD phase, logging start/finish and elapsed time around it.
    `timer` is a bare identifier (token-pasted by DBJ_TAU_START_TIMER/
-   DBJ_TAU_ELAPSED and stringized here for the phase name); `verb_ed` is
-   the past-tense verb for the finish line, e.g. "created". One place
-   owns the log/timer format instead of one copy per phase. */
-#define RUN_PHASE(timer, verb_ed, count, call)                              \
+   DBJ_TAU_ELAPSED and stringized here for both the phase name and the
+   finish-line verb, e.g. "create" -- present tense, not "created").
+   `n_function_name` is the phase's worker function, e.g. create_n. One
+   place owns the log/timer format instead of one copy per phase. */
+#define RUN_PHASE(timer, count, n_function_name)                            \
     do {                                                                    \
         DBJ_TEXT_LINE;                                                      \
         SIMPLE_LOG(#timer "_n: starting");                                  \
         DBJ_TAU_START_TIMER(timer);                                         \
-        call;                                                               \
-        SIMPLE_LOG(#timer "_n: finished, " verb_ed " %d emails, elapsed %.2fms", \
+        n_function_name(count);                                            \
+        SIMPLE_LOG(#timer "_n: finished, " #timer " %d emails, elapsed %.2fms", \
                    count, DBJ_TAU_ELAPSED(timer) / 1e6);                    \
     } while (0)
 
 TEST(DBJ_EMAIL_CRUD, TEST) {
     DBJ_TEXT_LINE;
-    load_and_validate_config(g_ini_path, &g_config);
+    load_and_validate_config(g_ini_path, &g_email_crud_config);
 
-    int number_of_emails = g_config.number_of_emails;
+    int number_of_emails = g_email_crud_config.number_of_emails;
 
-    RUN_PHASE(create, "created", number_of_emails, create_n(number_of_emails));
-    RUN_PHASE(read,   "read",    number_of_emails, read_n(number_of_emails));
-    RUN_PHASE(update, "updated", number_of_emails, update_n(number_of_emails));
-    RUN_PHASE(delete, "deleted", number_of_emails, delete_n(number_of_emails));
+    RUN_PHASE(create, number_of_emails, create_n);
+    RUN_PHASE(read,   number_of_emails, read_n);
+    RUN_PHASE(update, number_of_emails, update_n);
+    RUN_PHASE(delete, number_of_emails, delete_n);
 }
