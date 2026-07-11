@@ -128,6 +128,32 @@ static EmailCrudConfig g_config = {};
 
 static EmailId g_ids[EMAIL_STORAGE_CAPACITY] = {};
 
+/* snprintf that aborts the test if the write was truncated or failed --
+   silent truncation here would silently corrupt CRUD data. The one place
+   truncation is accepted by design is format_subject_with_seq, which
+   keeps its own plain snprintf and explains why. Only usable inside a
+   void-returning function: REQUIRE_TRUE expands to a bare `return;` on
+   failure, so it cannot be used inside ini_config_handler below (which
+   returns int) -- see DBJ_SNPRINTF_HANDLER_REQUIRE for that case. */
+#define DBJ_SNPRINTF_REQUIRE(dest, size, ...)                                       \
+    do {                                                                            \
+        int dbj_snprintf_ret_ = snprintf((dest), (size), __VA_ARGS__);              \
+        REQUIRE_TRUE(dbj_snprintf_ret_ >= 0 && (size_t)dbj_snprintf_ret_ < (size),  \
+                     "snprintf truncated or failed writing to " #dest);             \
+    } while (0)
+
+/* Same check for use inside ini_config_handler, which returns int (the
+   inifile.h callback contract) and so cannot use REQUIRE_TRUE. Returning
+   0 here reports through the same error_/optional_line_no_ path as any
+   other malformed ini line -- see the REQUIRE_TRUE checks on ini_result
+   in load_and_validate_config. */
+#define DBJ_SNPRINTF_HANDLER_REQUIRE(dest, size, ...)                    \
+    do {                                                                 \
+        int dbj_snprintf_ret_ = snprintf((dest), (size), __VA_ARGS__);   \
+        if (dbj_snprintf_ret_ < 0 || (size_t)dbj_snprintf_ret_ >= (size)) \
+            return 0;                                                   \
+    } while (0)
+
 static int ini_config_handler(void* user, const char section[static MAX_SECTION],
                                const char name[static MAX_NAME],
                                const char value[static INIFILE_MAX_LINE]) {
@@ -137,17 +163,17 @@ static int ini_config_handler(void* user, const char section[static MAX_SECTION]
     if (strcmp(name, "NUMBER_OF_EMAILS") == 0)
         cfg->number_of_emails = atoi(value);
     else if (strcmp(name, "EMAIL_FROM_ADDR") == 0)
-        snprintf(cfg->from_addr, sizeof cfg->from_addr, "%s", value);
+        DBJ_SNPRINTF_HANDLER_REQUIRE(cfg->from_addr, sizeof cfg->from_addr, "%s", value);
     else if (strcmp(name, "EMAIL_FROM_SUBJECT") == 0)
-        snprintf(cfg->from_subject, sizeof cfg->from_subject, "%s", value);
+        DBJ_SNPRINTF_HANDLER_REQUIRE(cfg->from_subject, sizeof cfg->from_subject, "%s", value);
     else if (strcmp(name, "EMAIL_FROM_BODY") == 0)
-        snprintf(cfg->from_body, sizeof cfg->from_body, "%s", value);
+        DBJ_SNPRINTF_HANDLER_REQUIRE(cfg->from_body, sizeof cfg->from_body, "%s", value);
     else if (strcmp(name, "EMAIL_TO_ADDR") == 0)
-        snprintf(cfg->to_addr, sizeof cfg->to_addr, "%s", value);
+        DBJ_SNPRINTF_HANDLER_REQUIRE(cfg->to_addr, sizeof cfg->to_addr, "%s", value);
     else if (strcmp(name, "EMAIL_TO_SUBJECT") == 0)
-        snprintf(cfg->to_subject, sizeof cfg->to_subject, "%s", value);
+        DBJ_SNPRINTF_HANDLER_REQUIRE(cfg->to_subject, sizeof cfg->to_subject, "%s", value);
     else if (strcmp(name, "EMAIL_TO_BODY") == 0)
-        snprintf(cfg->to_body, sizeof cfg->to_body, "%s", value);
+        DBJ_SNPRINTF_HANDLER_REQUIRE(cfg->to_body, sizeof cfg->to_body, "%s", value);
 
     return 1; /* unknown keys are ignored, not an error */
 }
@@ -170,7 +196,27 @@ static void format_subject_with_seq(char dest[static EMAIL_RECORD_SUBJECT_SIZE],
 
 /* ── one phase per CRUD verb, kept as plain helpers (not TEST cases) so
    they can share g_ids across calls -- see the file header comment on
-   why crud_n_flow is one TEST, not four. ── */
+   why crud_n_flow is one TEST, not four. Each reaches g_config/g_ids/
+   storage_instance() directly rather than taking them as params: there
+   is exactly one caller (the TEST below) and those three are already
+   file-scope singletons, so threading them through as parameters would
+   just be repeating the same three arguments at every call site.
+   number_of_emails is the only value that is genuinely call-specific. ── */
+
+/* create_email_storage_instance() re-wires the same function pointers
+   every time it is called, so calling it once per _n function (as
+   create_n/read_n/update_n/delete_n used to) is wasted, misleading
+   work. storage_instance() caches the pointer in a function-local
+   static, initialized on first call -- the standard C idiom for
+   exactly-once (ISO C requires static-local initializers to be
+   constant expressions, so the caching has to happen in the body, not
+   in the static's own initializer). */
+static EmailStorage* storage_instance(void) {
+    static EmailStorage* singleton_ = nullptr;
+    if (!singleton_)
+        singleton_ = create_email_storage_instance();
+    return singleton_;
+}
 
 static void load_and_validate_config(const char* ini_path, EmailCrudConfig* cfg) {
     REQUIRE_TRUE(ini_path != nullptr, "no ini file given on the command line");
@@ -201,48 +247,50 @@ static void load_and_validate_config(const char* ini_path, EmailCrudConfig* cfg)
     printf("    EMAIL_TO_BODY = %s\n", cfg->to_body);
 }
 
-static void create_n(EmailStorage* db, const EmailCrudConfig* cfg,
-                      int n, EmailId ids[static n]) {
-    for (int i = 0; i < n; i++) {
-        EmailRecord record = {};
-        snprintf(record.from, sizeof record.from, "%s", cfg->from_addr);
-        snprintf(record.to, sizeof record.to, "%s", cfg->to_addr);
+static void create_n(int number_of_emails) {
+    EmailStorage* db = storage_instance();
+    EmailRecord   record = {};
+    for (int i = 0; i < number_of_emails; i++) {
+        DBJ_SNPRINTF_REQUIRE(record.from, sizeof record.from, "%s", g_config.from_addr);
+        DBJ_SNPRINTF_REQUIRE(record.to, sizeof record.to, "%s", g_config.to_addr);
         format_subject_with_seq(record.subject, sizeof record.subject,
-                                 cfg->from_subject, i);
-        snprintf(record.body, sizeof record.body, "%s", cfg->from_body);
+                                 g_config.from_subject, i);
+        DBJ_SNPRINTF_REQUIRE(record.body, sizeof record.body, "%s", g_config.from_body);
 
         EmailStorageResult r = db->CreateEmail(record);
         REQUIRE_TRUE(r.tag == EMAIL_STORAGE_OK, "CREATE failed mid-sequence");
-        ids[i] = r.ok.record.record_id;
+        g_ids[i] = r.ok.record.record_id;
     }
 }
 
-static void read_n(EmailStorage* db, int n, const EmailId ids[static n]) {
-    for (int i = 0; i < n; i++) {
-        EmailStorageResult r = db->ReadEmail(ids[i]);
+static void read_n(int number_of_emails) {
+    EmailStorage* db = storage_instance();
+    for (int i = 0; i < number_of_emails; i++) {
+        EmailStorageResult r = db->ReadEmail(g_ids[i]);
         CHECK_TRUE(r.tag == EMAIL_STORAGE_OK, "READ failed mid-sequence");
     }
 }
 
-static void update_n(EmailStorage* db, const EmailCrudConfig* cfg,
-                      int n, const EmailId ids[static n]) {
-    for (int i = 0; i < n; i++) {
-        EmailRecord record = {};
-        record.record_id = ids[i];
-        snprintf(record.from, sizeof record.from, "%s", cfg->from_addr);
-        snprintf(record.to, sizeof record.to, "%s", cfg->to_addr);
+static void update_n(int number_of_emails) {
+    EmailStorage* db = storage_instance();
+    EmailRecord   record = {};
+    for (int i = 0; i < number_of_emails; i++) {
+        record.record_id = g_ids[i];
+        DBJ_SNPRINTF_REQUIRE(record.from, sizeof record.from, "%s", g_config.from_addr);
+        DBJ_SNPRINTF_REQUIRE(record.to, sizeof record.to, "%s", g_config.to_addr);
         format_subject_with_seq(record.subject, sizeof record.subject,
-                                 cfg->to_subject, i);
-        snprintf(record.body, sizeof record.body, "%s", cfg->to_body);
+                                 g_config.to_subject, i);
+        DBJ_SNPRINTF_REQUIRE(record.body, sizeof record.body, "%s", g_config.to_body);
 
         EmailStorageResult r = db->UpdateEmail(record);
         CHECK_TRUE(r.tag == EMAIL_STORAGE_OK, "UPDATE failed mid-sequence");
     }
 }
 
-static void delete_n(EmailStorage* db, int n, const EmailId ids[static n]) {
-    for (int i = 0; i < n; i++) {
-        EmailStorageResult r = db->DeleteEmail(ids[i]);
+static void delete_n(int number_of_emails) {
+    EmailStorage* db = storage_instance();
+    for (int i = 0; i < number_of_emails; i++) {
+        EmailStorageResult r = db->DeleteEmail(g_ids[i]);
         CHECK_TRUE(r.tag == EMAIL_STORAGE_OK, "DELETE failed mid-sequence");
     }
 }
@@ -268,11 +316,10 @@ TEST(DBJ_EMAIL_CRUD, TEST) {
     DBJ_TEXT_LINE;
     load_and_validate_config(g_ini_path, &g_config);
 
-    EmailStorage* db = email_storage_instance();
-    int n = g_config.number_of_emails;
+    int number_of_emails = g_config.number_of_emails;
 
-    RUN_PHASE(create, "created", n, create_n(db, &g_config, n, g_ids));
-    RUN_PHASE(read,   "read",    n, read_n(db, n, g_ids));
-    RUN_PHASE(update, "updated", n, update_n(db, &g_config, n, g_ids));
-    RUN_PHASE(delete, "deleted", n, delete_n(db, n, g_ids));
+    RUN_PHASE(create, "created", number_of_emails, create_n(number_of_emails));
+    RUN_PHASE(read,   "read",    number_of_emails, read_n(number_of_emails));
+    RUN_PHASE(update, "updated", number_of_emails, update_n(number_of_emails));
+    RUN_PHASE(delete, "deleted", number_of_emails, delete_n(number_of_emails));
 }

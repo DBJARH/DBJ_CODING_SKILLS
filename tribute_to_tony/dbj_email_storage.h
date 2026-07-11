@@ -30,16 +30,21 @@ struct EmailStorage {
 };
 
 /*
- * email_storage_instance() is the one factory callers use to obtain a
- * working EmailStorage. It returns a pointer to a single module-level
- * storage instance (see "Notice on user required and assumed behavior"
- * in dbj_discriminated_union.md) — every caller shares the same
- * records array, so a copy-by-value here would let each caller's
- * struct go stale the moment any CRUD verb runs against the singleton.
- * Callers never pass storage in by hand, so there is no `self`
- * parameter on any CRUD verb.
+ * create_email_storage_instance() wires the CRUD function pointers into
+ * the single module-level EmailStorage and returns its address (see
+ * "Notice on user required and assumed behavior" in
+ * dbj_discriminated_union.md) — every caller shares the same records
+ * array, so a copy-by-value here would let each caller's struct go
+ * stale the moment any CRUD verb runs against the singleton. Callers
+ * never pass storage in by hand, so there is no `self` parameter on any
+ * CRUD verb.
+ *
+ * Despite the name it is safe to call more than once (it just re-wires
+ * the same function pointers), but callers should still only call it
+ * once and hold onto the returned pointer -- see storage_instance() in
+ * dbj_email_crud.c for the pattern.
  */
-EmailStorage* email_storage_instance(void);
+EmailStorage* create_email_storage_instance(void);
 
 // define in exactly one translation unit (aka c file)
 #ifdef DBJ_EMAIL_STORAGE_IMPLEMENTATION
@@ -111,7 +116,7 @@ static EmailStorageResult email_storage_delete(EmailId id) {
     return email_storage_result_ok(deleted);
 }
 
-EmailStorage* email_storage_instance(void) {
+EmailStorage* create_email_storage_instance(void) {
     email_storage_singleton.CreateEmail = email_storage_create;
     email_storage_singleton.ReadEmail   = email_storage_read;
     email_storage_singleton.UpdateEmail = email_storage_update;
@@ -130,9 +135,12 @@ EmailStorage* email_storage_instance(void) {
  *     #define DBJ_EMAIL_STORAGE_IMPLEMENTATION
  *     #include "dbj_email_storage.h"
  *
- * Every other .c file just includes the header normally.
+ * Every other .c file just includes the header normally. Call
+ * create_email_storage_instance() once and hold onto the returned
+ * pointer -- see storage_instance() in dbj_email_crud.c for the
+ * exactly-once pattern.
  *
- *     EmailStorage* db = email_storage_instance();
+ *     EmailStorage* db = create_email_storage_instance();
  *
  *     EmailStorageResult r = db->CreateEmail((EmailRecord){
  *         .to = "bob@example.com", .from = "alice@example.com",
