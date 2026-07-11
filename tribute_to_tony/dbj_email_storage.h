@@ -28,13 +28,16 @@ typedef struct EmailStorage EmailStorage;
 struct EmailStorage {
     EmailRecord records[EMAIL_STORAGE_CAPACITY];
 
-    /* record_id is always (slot index + 1) -- see email_storage_create.
-       A deleted slot is pushed onto this free list and its index is
-       reissued to the next CreateEmail, so an EmailId is only a stable
-       identity while the record is live: after delete, that same id
-       value will be reused by whatever record lands in the slot next.
-       next_free_slot[i] is only meaningful while slot i is on the free
-       list (i.e. records[i].record_id == EMAIL_ID_EMPTY). */
+    /* Occupancy is tracked here, independently of what slot_id holds --
+       so slot_id can be a plain 0-based slot index with no reserved
+       "empty" value (see dbj_email_record.h). A deleted slot's index is
+       pushed onto the free list and reissued to the next CreateEmail,
+       so a slot_id is only a stable identity while occupied[id] is
+       true: after delete, that same id value will be reused by
+       whatever record lands in the slot next. next_free_slot[i] is
+       only meaningful while slot i is on the free list (i.e.
+       occupied[i] is false and i is reachable from free_list_head). */
+    bool   occupied[EMAIL_STORAGE_CAPACITY];
     size_t next_free_slot[EMAIL_STORAGE_CAPACITY];
     size_t free_list_head;   /* EMAIL_STORAGE_FREE_LIST_EMPTY if none free */
     size_t high_water_mark;  /* count of slots ever occupied at least once */
@@ -66,7 +69,6 @@ EmailStorage* create_email_storage_instance(void);
 // define in exactly one translation unit (aka c file)
 #ifdef DBJ_EMAIL_STORAGE_IMPLEMENTATION
 
-#include <assert.h>
 #include <string.h>
 
 /*
@@ -81,30 +83,45 @@ EmailStorage* create_email_storage_instance(void);
 static EmailStorage email_storage_singleton;
 
 /*
- * record_id is always (slot index + 1) -- one-based, so 0 stays free
- * for EMAIL_ID_EMPTY. A live slot's occupancy is exactly
- * records[id-1].record_id == id: an empty/never-used slot is
- * zero-initialized (record_id == EMAIL_ID_EMPTY) and a freed slot is
- * reset to EMPTY_EMAIL_RECORD on delete, so neither can match a real id.
+ * slot_id is a plain 0-based slot index -- no reserved value, every
+ * EmailId (including 0) can be a real record's slot_id. occupied[id] is
+ * the sole source of truth for whether that slot currently holds a
+ * live record.
  */
 static EmailRecord* email_storage_find_by_id(EmailId id) {
-    assert(id != EMAIL_ID_EMPTY && "email_storage_find_by_id called with empty id");
-    if (id > EMAIL_STORAGE_CAPACITY) return nullptr;
-    EmailRecord* slot = &email_storage_singleton.records[id - 1];
-    return slot->record_id == id ? slot : nullptr;
+    if (id >= EMAIL_STORAGE_CAPACITY) return nullptr;
+    return email_storage_singleton.occupied[id] ? &email_storage_singleton.records[id] : nullptr;
+}
+
+/*
+ * Counter is local-static, not a field on EmailStorage: it is unrelated
+ * to slot reuse (it only ever increments, never rewound by delete), so
+ * it does not belong next to free_list_head/high_water_mark/live_count,
+ * which are all slot bookkeeping.
+ */
+static UniqueId next_unique_id(void) {
+    static UniqueId next_ = 0;
+    return next_++;
 }
 
 /*
  * Slot for the new record comes from the free list first (a delete's
  * leftover slot, reused so churn doesn't burn through capacity), and
  * only once that's empty from a never-before-used slot at
- * high_water_mark. Either way record_id = slot index + 1, so ids are
- * reused whenever their slot is: an EmailId is only a stable identity
- * while its record is live, not forever -- see the free list comment
- * on EmailStorage.
+ * high_water_mark. Either way slot_id = slot index, so ids are reused
+ * whenever their slot is: a slot_id is only a stable identity while
+ * its record is live, not forever -- see the free list comment on
+ * EmailStorage.
+ *
+ * unique_id is unrelated to slot reuse: it comes from next_unique_id(),
+ * which only ever increments, so it stays distinct across the whole
+ * run even when slot_id gets reissued to a different record. Nothing
+ * in storage looks unique_id up by -- it is not an index into anything
+ * -- so incoming record.unique_id (if the caller set one) is discarded
+ * here in favor of the one storage assigns.
  */
 static EmailStorageResult email_storage_create(EmailRecord record) {
-    size_t slot;
+    size_t slot = (size_t)0;
     if (email_storage_singleton.free_list_head != EMAIL_STORAGE_FREE_LIST_EMPTY) {
         slot = email_storage_singleton.free_list_head;
         email_storage_singleton.free_list_head = email_storage_singleton.next_free_slot[slot];
@@ -114,8 +131,10 @@ static EmailStorageResult email_storage_create(EmailRecord record) {
         return email_storage_result_err(__func__, "storage full");
     }
 
-    record.record_id = slot + 1;
-    email_storage_singleton.records[slot] = record;
+    record.slot_id   = slot;
+    record.unique_id = next_unique_id();
+    email_storage_singleton.records[slot]  = record;
+    email_storage_singleton.occupied[slot] = true;
     email_storage_singleton.live_count++;
     return email_storage_result_ok(record);
 }
@@ -127,10 +146,18 @@ static EmailStorageResult email_storage_read(EmailId id) {
     return email_storage_result_ok(*found);
 }
 
+/*
+ * unique_id is assigned once, on create, and otherwise left alone: a
+ * caller building `record` fresh (see update_n in dbj_email_crud.c)
+ * has no reason to know the stored unique_id, so it is carried forward
+ * from the existing slot here rather than taken from the incoming
+ * record (which would otherwise zero it out on every update).
+ */
 static EmailStorageResult email_storage_update(EmailRecord record) {
-    EmailRecord* slot = email_storage_find_by_id(record.record_id);
+    EmailRecord* slot = email_storage_find_by_id(record.slot_id);
     if (!slot)
         return email_storage_result_err(__func__, "not found");
+    record.unique_id = slot->unique_id;
     *slot = record;
     return email_storage_result_ok(*slot);
 }
@@ -145,11 +172,10 @@ static EmailStorageResult email_storage_delete(EmailId id) {
         return email_storage_result_err(__func__, "not found");
 
     EmailRecord deleted = *slot;
-    *slot = EMPTY_EMAIL_RECORD;
+    email_storage_singleton.occupied[id] = false;
 
-    size_t slot_index = id - 1;
-    email_storage_singleton.next_free_slot[slot_index] = email_storage_singleton.free_list_head;
-    email_storage_singleton.free_list_head = slot_index;
+    email_storage_singleton.next_free_slot[id] = email_storage_singleton.free_list_head;
+    email_storage_singleton.free_list_head = id;
     email_storage_singleton.live_count--;
 
     return email_storage_result_ok(deleted);

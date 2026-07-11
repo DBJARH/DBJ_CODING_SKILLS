@@ -45,25 +45,45 @@ sequenceDiagram
   - Storage is a logical array of `EmailRecord`s, plus a singly-linked
     free list threaded through the same array for slot reuse
     - We consider this a specialized storage for `EmailRecord`s
-    - `EmailRecord.record_id` is always (array index + 1) — one-based,
-      so id `0` (`EMAIL_ID_EMPTY`) stays reserved for "empty slot" and
-      is never assigned to a real record
-      - a deleted slot is pushed onto the free list and its index is
-        reissued to the next `CreateEmail`, so **ids are reused**: an
-        `EmailId` is only a stable identity while its record is live,
-        not a permanent one — after delete, that numeric id will come
-        back attached to a different record once its slot is reused
-      - this bounds capacity by *live* records, not by total creates
-        ever made — churn (create/delete/create/...) does not burn
-        through `EMAIL_STORAGE_CAPACITY`
+    - There is no table here, so no `ROWID` in the SQLite sense either
+      — but the same distinction is worth naming explicitly, since it is
+      exactly what trips people up: this storage gives every record
+      **two** ids, with two different lifetimes
+      - `EmailRecord.slot_id` — a plain 0-based array index, what CRUD
+        actually keys every lookup on. No reserved "empty" id; every
+        value, including `0`, can be a real record's `slot_id`
+        - occupancy (is this slot live right now) is tracked
+          separately, by storage's own `occupied[]` array — not by any
+          special value of `slot_id`, so there is nothing for `slot_id`
+          to avoid
+        - a deleted slot is pushed onto the free list and its index is
+          reissued to the next `CreateEmail`, so **`slot_id`s are
+          reused**: a `slot_id` is only a stable identity while its
+          record is live, not a permanent one — after delete, that
+          numeric id will come back attached to a different record once
+          its slot is reused
+        - this bounds capacity by *live* records, not by total creates
+          ever made — churn (create/delete/create/...) does not burn
+          through `EMAIL_STORAGE_CAPACITY`
+      - `EmailRecord.unique_id` — assigned once on `CreateEmail`, from a
+        counter that only ever increments, and never reused or looked
+        up by. Not used by any CRUD verb; it exists purely so a
+        record's identity is legible even after its `slot_id` has been
+        reissued — read a record back, and its `unique_id` tells you
+        whether you are looking at the same record you created or a
+        different one that has since landed in the same slot
+        - its own type, `UniqueId`, is a distinct typedef from `EmailId`
+          — the two ids answer different questions (which slot, vs which
+          record), so sharing one type made that distinction easy to
+          miss at a glance
 
 ```mermaid
 graph LR
     subgraph EmailStorage
-        R1["records[0] id=1 (live)"]
-        R2["records[1] id=2 (live)"]
-        R3["records[2] EMPTY (free)"]
-        R4["records[3] EMPTY (free)"]
+        R1["records[0] slot_id=0 unique_id=7 (occupied)"]
+        R2["records[1] slot_id=1 unique_id=8 (occupied)"]
+        R3["records[2] (free)"]
+        R4["records[3] (free)"]
     end
     free_list_head --> R4 -. next_free_slot .-> R3
 ```
@@ -72,19 +92,16 @@ graph LR
 
 ```c
 typedef U8TYPE EmailId;
-
-#define EMAIL_ID_EMPTY \
-    ((EmailId)0x00) /* reserved — marks empty slot NOT null record */
+typedef U8TYPE UniqueId;
 
 typedef struct {
-    EmailId id;
+    EmailId  slot_id;   // reused after delete -- what CRUD keys on
+    UniqueId unique_id; // monotonic, never reused, unused by CRUD
     char to[64];
     char from[64];
     char subject[128];
     char body[512];
 } EmailRecord;
-
-static const EmailRecord EMPTY_EMAIL_RECORD = {.id = EMAIL_ID_EMPTY};
 
 ```
 
@@ -187,14 +204,22 @@ in any case it is not a good practice to leave it to the users how will be the s
 
 Storage is a fixed `records[EMAIL_STORAGE_CAPACITY]` array, exactly as
 in Synopsys 0, plus a singly-linked free list threaded through it via
-`next_free_slot` — so CRUD stays O(1) (direct index by
-`record_id - 1`), with no heap allocation. `record_id` is always (slot
-index + 1); a deleted slot's index goes onto `free_list_head` and is
+`next_free_slot` — so CRUD stays O(1) (direct index by `slot_id`),
+with no heap allocation. `slot_id` is a plain 0-based slot index, no
+reserved "empty" value: occupancy is tracked independently by
+`occupied[]`, so `slot_id` itself never needs to avoid a particular
+value. A deleted slot's index goes onto `free_list_head` and is
 reissued to the next `CreateEmail`, so churn (create/delete/create/...)
 reuses slots instead of exhausting `high_water_mark` toward
 `EMAIL_STORAGE_CAPACITY`. `live_count` is the number of records
 currently in storage (up on create, down on delete) — distinct from
 `high_water_mark`, the count of slots ever occupied at least once.
+
+`EmailRecord.unique_id` (see EmailRecord above) comes from a
+`next_unique_id()` function, not a struct field — its counter is
+unrelated to slot reuse, so it does not belong next to the slot
+bookkeeping (`free_list_head`/`high_water_mark`/`live_count`) on
+`EmailStorage`. `CreateEmail` calls it once per record.
 
 ```c
 typedef struct EmailStorage EmailStorage;
@@ -205,6 +230,7 @@ typedef struct EmailStorage EmailStorage;
 struct EmailStorage {
     EmailRecord records[/* capacity */];
 
+    bool   occupied[/* capacity */];       /* is this slot live right now */
     size_t next_free_slot[/* capacity */]; /* free-list links, by index */
     size_t free_list_head;                 /* or "empty" sentinel */
     size_t high_water_mark;                /* slots ever occupied */

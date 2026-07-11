@@ -81,47 +81,9 @@ TAU_NO_MAIN()
 
 static char g_ini_path[BUFSIZ] = {};
 
-/* argv[0] is the program name, argv[1] is our ini path -- neither is a
-   tau option, so both are stripped before argc/argv reach tau_main(),
-   which otherwise treats every argument as one of its own --flags and
-   aborts on the first one it does not recognize. tau_argv0_ still gets
-   the real program name (tau_argv[0] below), just not our ini path.
-
-   Copies argv[1] with a plain snprintf, not DBJ_SNPRINTF below: that
-   macro's REQUIRE_TRUE expands to a bare `return;` on failure, which is
-   invalid in a function returning int like this one. */
-int main(const int argc, const char* const* const argv) {
-    printf("Built: %s %s\n\n", __DATE__, __TIME__);
-
-    if (argc < 2) {
-        printf("Usage: %s <ini-file> [tau options]\n\n", argv[0]);
-        printf("<ini-file> must exist and look like this:\n\n");
-        printf("    NUMBER_OF_EMAILS = %d .. %d\n", MIN_EMAILS_STORAGE_LIMIT, MAX_EMAILS_STORAGE_LIMIT);
-        printf("    EMAIL_FROM_ADDR = alice@example.com\n");
-        printf("    EMAIL_FROM_SUBJECT = Q1 report\n");
-        printf("    EMAIL_FROM_BODY = Please find attached...\n");
-        printf("    EMAIL_TO_ADDR = bob@example.com\n");
-        printf("    EMAIL_TO_SUBJECT = Meeting notes\n");
-        printf("    EMAIL_TO_BODY = As discussed...\n\n");
-        printf("Current email storage capacity: %d\n", EMAIL_STORAGE_CAPACITY);
-        return 1;
-    }
-    int ini_path_ret_ = snprintf(g_ini_path, sizeof g_ini_path, "%s", argv[1]);
-    if (ini_path_ret_ < 0 || (size_t)ini_path_ret_ >= sizeof g_ini_path) {
-        printf("ini file path truncated or failed to copy: %s\n", argv[1]);
-        return 1;
-    }
-
-    const char* tau_argv[argc - 1];
-    tau_argv[0] = argv[0];
-    for (int i = 2; i < argc; i++)
-        tau_argv[i - 1] = argv[i];
-
-    return tau_main(argc - 1, tau_argv);
-}
-
-typedef struct {
-    int  number_of_emails;
+typedef struct
+{
+    int number_of_emails;
     char from_addr[EMAIL_RECORD_FROM_SIZE];
     char from_subject[EMAIL_RECORD_SUBJECT_SIZE];
     char from_body[EMAIL_RECORD_BODY_SIZE];
@@ -132,9 +94,13 @@ typedef struct {
 
 static EmailCrudConfig g_email_crud_config = {};
 
-/* ── N ids created by create_n, reused by read_n/update_n/delete_n ── */
+/* ── N ids created by create_n, reused by read_n/update_n/delete_n ──
+   g_ids[0 .. g_ids_count) is kept dense: delete_range compacts it by
+   swapping the freed slots' tail down, so it is always exactly the
+   current set of live ids, in creation order. */
 
 static EmailId g_ids[EMAIL_STORAGE_CAPACITY] = {};
+static int g_ids_count = 0;
 
 /* snprintf that aborts the test if the write was truncated or failed --
    silent truncation here would silently corrupt CRUD data. The one place
@@ -143,11 +109,12 @@ static EmailId g_ids[EMAIL_STORAGE_CAPACITY] = {};
    void-returning function: REQUIRE_TRUE expands to a bare `return;` on
    failure, so it cannot be used inside ini_config_handler below (which
    returns int) -- see DBJ_SNPRINTF_HANDLER_REQUIRE for that case. */
-#define DBJ_SNPRINTF(dest, size, ...)                                       \
-    do {                                                                            \
-        int dbj_snprintf_ret_ = snprintf((dest), (size), __VA_ARGS__);              \
-        REQUIRE_TRUE(dbj_snprintf_ret_ >= 0 && (size_t)dbj_snprintf_ret_ < (size),  \
-                     "snprintf truncated or failed writing to " #dest);             \
+#define DBJ_SNPRINTF(dest, size, ...)                                              \
+    do                                                                             \
+    {                                                                              \
+        int dbj_snprintf_ret_ = snprintf((dest), (size), __VA_ARGS__);             \
+        REQUIRE_TRUE(dbj_snprintf_ret_ >= 0 && (size_t)dbj_snprintf_ret_ < (size), \
+                     "snprintf truncated or failed writing to " #dest);            \
     } while (0)
 
 /* Same check for use inside ini_config_handler, which returns int (the
@@ -155,18 +122,20 @@ static EmailId g_ids[EMAIL_STORAGE_CAPACITY] = {};
    0 here reports through the same error_/optional_line_no_ path as any
    other malformed ini line -- see the REQUIRE_TRUE checks on ini_result
    in load_and_validate_config. */
-#define DBJ_SNPRINTF_HANDLER_REQUIRE(dest, size, ...)                    \
-    do {                                                                 \
-        int dbj_snprintf_ret_ = snprintf((dest), (size), __VA_ARGS__);   \
+#define DBJ_SNPRINTF_HANDLER_REQUIRE(dest, size, ...)                     \
+    do                                                                    \
+    {                                                                     \
+        int dbj_snprintf_ret_ = snprintf((dest), (size), __VA_ARGS__);    \
         if (dbj_snprintf_ret_ < 0 || (size_t)dbj_snprintf_ret_ >= (size)) \
-            return 0;                                                   \
+            return 0;                                                     \
     } while (0)
 
-static int ini_config_handler(void* user, const char section[static MAX_SECTION],
-                               const char name[static MAX_NAME],
-                               const char value[static INIFILE_MAX_LINE]) {
+static int ini_config_handler(void *user, const char section[static MAX_SECTION],
+                              const char name[static MAX_NAME],
+                              const char value[static INIFILE_MAX_LINE])
+{
     (void)section;
-    EmailCrudConfig* cfg = (EmailCrudConfig*)user;
+    EmailCrudConfig *cfg = (EmailCrudConfig *)user;
 
     if (strcmp(name, "NUMBER_OF_EMAILS") == 0)
         cfg->number_of_emails = atoi(value);
@@ -193,9 +162,10 @@ static int ini_config_handler(void* user, const char section[static MAX_SECTION]
  * suppressed locally instead of working around it with a bigger buffer.
  */
 static void format_subject_with_seq(char dest[static EMAIL_RECORD_SUBJECT_SIZE],
-                                     size_t dest_size,
-                                     const char base[static EMAIL_RECORD_SUBJECT_SIZE],
-                                     int seq) {
+                                    size_t dest_size,
+                                    const char base[static EMAIL_RECORD_SUBJECT_SIZE],
+                                    int seq)
+{
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wformat-truncation"
     snprintf(dest, dest_size, "%s #%d", base, seq);
@@ -219,16 +189,18 @@ static void format_subject_with_seq(char dest[static EMAIL_RECORD_SUBJECT_SIZE],
    exactly-once (ISO C requires static-local initializers to be
    constant expressions, so the caching has to happen in the body, not
    in the static's own initializer). */
-static EmailStorage* storage_instance(void) {
-    static EmailStorage* singleton_ = nullptr;
+static EmailStorage *storage_instance(void)
+{
+    static EmailStorage *singleton_ = nullptr;
     if (!singleton_)
         singleton_ = create_email_storage_instance();
-// function call is not allowed in a constant expression C/C++(59)
-// static EmailStorage* singleton_ = create_email_storage_instance();
-        return singleton_;
+    // function call is not allowed in a constant expression C/C++(59)
+    // static EmailStorage* singleton_ = create_email_storage_instance();
+    return singleton_;
 }
 
-static void load_and_validate_config(const char* ini_path, EmailCrudConfig* cfg) {
+static void load_and_validate_config(const char *ini_path, EmailCrudConfig *cfg)
+{
     REQUIRE_TRUE(ini_path != nullptr, "no ini file given on the command line");
 
     Inifile_result ini_result = ini_parse(ini_path, ini_config_handler, cfg);
@@ -247,6 +219,7 @@ static void load_and_validate_config(const char* ini_path, EmailCrudConfig* cfg)
                  "Ini file: %s , NUMBER_OF_EMAILS %d is larger than EMAIL_STORAGE_CAPACITY %d",
                  ini_path, cfg->number_of_emails, EMAIL_STORAGE_CAPACITY);
 
+#if DUMP_INI_ON_STARUP
     printf("Ini file: %s\n", ini_path);
     printf("    NUMBER_OF_EMAILS = %d\n", cfg->number_of_emails);
     printf("    EMAIL_FROM_ADDR = %s\n", cfg->from_addr);
@@ -255,41 +228,107 @@ static void load_and_validate_config(const char* ini_path, EmailCrudConfig* cfg)
     printf("    EMAIL_TO_ADDR = %s\n", cfg->to_addr);
     printf("    EMAIL_TO_SUBJECT = %s\n", cfg->to_subject);
     printf("    EMAIL_TO_BODY = %s\n", cfg->to_body);
+#endif // DUMP_INI_ON_STARUP
 }
 
-static void create_n(int number_of_emails) {
-    EmailStorage* db = storage_instance();
-    EmailRecord   record = {};
-    for (int i = 0; i < number_of_emails; i++) {
+/* argv[0] is the program name, argv[1] is our ini path -- neither is a
+   tau option, so both are stripped before argc/argv reach tau_main(),
+   which otherwise treats every argument as one of its own --flags and
+   aborts on the first one it does not recognize. tau_argv0_ still gets
+   the real program name (tau_argv[0] below), just not our ini path.
+
+   Copies argv[1] with a plain snprintf, not DBJ_SNPRINTF below: that
+   macro's REQUIRE_TRUE expands to a bare `return;` on failure, which is
+   invalid in a function returning int like this one. */
+int main(const int argc, const char *const *const argv)
+{
+    printf("Built: %s %s\n\n", __DATE__, __TIME__);
+
+    if (argc < 2)
+    {
+        printf("Usage: %s <ini-file> [tau options]\n\n", argv[0]);
+        printf("<ini-file> must exist and look like this:\n\n");
+        printf("    NUMBER_OF_EMAILS = %d .. %d\n", MIN_EMAILS_STORAGE_LIMIT, MAX_EMAILS_STORAGE_LIMIT);
+        printf("    EMAIL_FROM_ADDR = alice@example.com\n");
+        printf("    EMAIL_FROM_SUBJECT = Q1 report\n");
+        printf("    EMAIL_FROM_BODY = Please find attached...\n");
+        printf("    EMAIL_TO_ADDR = bob@example.com\n");
+        printf("    EMAIL_TO_SUBJECT = Meeting notes\n");
+        printf("    EMAIL_TO_BODY = As discussed...\n\n");
+        printf("Current email storage capacity: %d\n", EMAIL_STORAGE_CAPACITY);
+        return 1;
+    }
+    int ini_path_ret_ = snprintf(g_ini_path, sizeof g_ini_path, "%s", argv[1]);
+    if (ini_path_ret_ < 0 || (size_t)ini_path_ret_ >= sizeof g_ini_path)
+    {
+        printf("ini file path truncated or failed to copy: %s\n", argv[1]);
+        return 1;
+    }
+
+    // DBJ: moved here from TEST
+    load_and_validate_config(g_ini_path, &g_email_crud_config);
+
+    const char *tau_argv[argc - 1];
+    tau_argv[0] = argv[0];
+    for (int i = 2; i < argc; i++)
+        tau_argv[i - 1] = argv[i];
+
+    return tau_main(argc - 1, tau_argv);
+}
+
+/*
+   Create number_of_emails emails, storing their ids into g_ids starting
+   at g_ids[start] -- start lets a second create batch (see TRICKY_TEST)
+   append after an earlier batch instead of overwriting its still-live
+   ids at g_ids[0..).
+*/
+static void create_n(int start, int number_of_emails)
+{
+    EmailStorage *db = storage_instance();
+    EmailRecord record = {};
+    for (int i = 0; i < number_of_emails; i++)
+    {
         DBJ_SNPRINTF(record.from, sizeof record.from, "%s", g_email_crud_config.from_addr);
         DBJ_SNPRINTF(record.to, sizeof record.to, "%s", g_email_crud_config.to_addr);
         format_subject_with_seq(record.subject, sizeof record.subject,
-                                 g_email_crud_config.from_subject, i);
+                                g_email_crud_config.from_subject, i);
         DBJ_SNPRINTF(record.body, sizeof record.body, "%s", g_email_crud_config.from_body);
 
         EmailStorageResult r = db->CreateEmail(record);
         REQUIRE_TRUE(r.tag == EMAIL_STORAGE_OK, "CREATE failed mid-sequence");
-        g_ids[i] = r.ok.record.record_id;
+        g_ids[start + i] = r.ok.record.slot_id;
     }
+    if (start + number_of_emails > g_ids_count)
+        g_ids_count = start + number_of_emails;
 }
 
-static void read_n(int number_of_emails) {
-    EmailStorage* db = storage_instance();
-    for (int email_id = 0; email_id < number_of_emails; email_id++) {
-        EmailStorageResult r = db->ReadEmail(  email_id + 1 /*g_ids[i]*/ );
+/*
+read N emails starting from the fist one stored to the number_of_emails
+*/
+static void read_n(int number_of_emails)
+{
+    EmailStorage *db = storage_instance();
+    for (int i = 0; i < number_of_emails; i++)
+    {
+        EmailStorageResult r = db->ReadEmail(g_ids[i]);
         CHECK_TRUE(r.tag == EMAIL_STORAGE_OK, "READ failed mid-sequence");
     }
 }
 
-static void update_n(int number_of_emails) {
-    EmailStorage* db = storage_instance();
-    EmailRecord   record = {};
-    for (int i = 0; i < number_of_emails; i++) {
-        record.record_id = g_ids[i];
+/*
+update N emails starting from the fist stored to the nuymber of emails
+*/
+static void update_n(int number_of_emails)
+{
+    EmailStorage *db = storage_instance();
+    EmailRecord record = {};
+    for (int i = 0; i < number_of_emails; i++)
+    {
+        record.slot_id = g_ids[i];
         DBJ_SNPRINTF(record.from, sizeof record.from, "%s", g_email_crud_config.from_addr);
         DBJ_SNPRINTF(record.to, sizeof record.to, "%s", g_email_crud_config.to_addr);
         format_subject_with_seq(record.subject, sizeof record.subject,
-                                 g_email_crud_config.to_subject, i);
+                                g_email_crud_config.to_subject, i);
         DBJ_SNPRINTF(record.body, sizeof record.body, "%s", g_email_crud_config.to_body);
 
         EmailStorageResult r = db->UpdateEmail(record);
@@ -297,40 +336,100 @@ static void update_n(int number_of_emails) {
     }
 }
 
-static void delete_n(int number_of_emails) {
-    EmailStorage* db = storage_instance();
-    for (int i = 0; i < number_of_emails; i++) {
+/*
+this effectivley deletes all email from the first one to number of emails
+*/
+static void delete_n(int number_of_emails)
+{
+    EmailStorage *db = storage_instance();
+    for (int i = 0; i < number_of_emails; i++)
+    {
         EmailStorageResult r = db->DeleteEmail(g_ids[i]);
         CHECK_TRUE(r.tag == EMAIL_STORAGE_OK, "DELETE failed mid-sequence");
     }
+    if (number_of_emails >= g_ids_count)
+        g_ids_count = 0;
+}
+
+/* delete_n above always starts at g_ids[0] -- deleting an arbitrary
+   sub-range (e.g. "the last five of the ten just created", see
+   TRICKY_TEST) needs lo/hi instead of just a count.
+
+   Deleting g_ids[lo..hi) would otherwise leave those slots holding
+   stale, already-deleted ids -- a later g_ids[0..g_ids_count) walk
+   would hit them and fail. So after deleting, the tail past hi (the
+   still-live ids) is moved down over the hole, keeping g_ids[0 ..
+   g_ids_count) dense and live, same idea as removing from a vector. */
+static void delete_range(int lo, int hi)
+{
+    EmailStorage *db = storage_instance();
+    for (int i = lo; i < hi; i++)
+    {
+        EmailStorageResult r = db->DeleteEmail(g_ids[i]);
+        CHECK_TRUE(r.tag == EMAIL_STORAGE_OK, "DELETE failed mid-sequence");
+    }
+
+    int deleted_count = hi - lo;
+    int tail_count = g_ids_count - hi;
+    memmove(&g_ids[lo], &g_ids[hi], (size_t)tail_count * sizeof g_ids[0]);
+    g_ids_count -= deleted_count;
 }
 
 #define DBJ_TEXT_LINE SIMPLE_LOG("---------------------------------------------------------")
 
-/* Runs one CRUD phase, logging start/finish and elapsed time around it.
+/* Times and logs one CRUD phase around `call_expr`, an already-complete
+   call expression (e.g. create_n(0, n) or delete_range(lo, hi)) -- this
+   is the one place that owns the log/timer format; RUN_PHASE and
+   RUN_PHASE_RANGE below just build call_expr for the common cases.
    `timer` is a bare identifier (token-pasted by DBJ_TAU_START_TIMER/
    DBJ_TAU_ELAPSED and stringized here for both the phase name and the
    finish-line verb, e.g. "create" -- present tense, not "created").
-   `n_function_name` is the phase's worker function, e.g. create_n. One
-   place owns the log/timer format instead of one copy per phase. */
-#define RUN_PHASE(timer, count, n_function_name)                            \
-    do {                                                                    \
-        DBJ_TEXT_LINE;                                                      \
-        SIMPLE_LOG(#timer "_n: starting");                                  \
-        DBJ_TAU_START_TIMER(timer);                                         \
-        n_function_name(count);                                            \
-        SIMPLE_LOG(#timer "_n: finished, " #timer " %d emails, elapsed %.2fms", \
-                   count, DBJ_TAU_ELAPSED(timer) / 1e6);                    \
+   `log_count` is the number of emails the phase touched, for the log
+   line only -- it does not have to match any single argument of
+   call_expr (a ranged call's count is hi - lo, not one argument). */
+#define RUN_PHASE_CALL(timer, log_count, call_expr)                                                                                     \
+    do                                                                                                                                  \
+    {                                                                                                                                   \
+        DBJ_TEXT_LINE;                                                                                                                  \
+        int phase_log_count_ = (log_count); /* snapshot before call_expr, which may mutate g_ids_count */                              \
+        DBJ_TAU_START_TIMER(timer);                                                                                                     \
+        call_expr;                                                                                                                      \
+        SIMPLE_LOG(#timer "_n: finished, " #timer " %d emails, elapsed %.2fms",                                                         \
+                   phase_log_count_, DBJ_TAU_ELAPSED(timer) / 1e6);                                                                     \
+        EmailStorage *db = storage_instance();                                                                                          \
+        SIMPLE_LOG("free_list_head=%zu, high_water_mark=%zu, live_count=%zu", db->free_list_head, db->high_water_mark, db->live_count); \
     } while (0)
 
-TEST(DBJ_EMAIL_CRUD, TEST) {
-    DBJ_TEXT_LINE;
-    load_and_validate_config(g_ini_path, &g_email_crud_config);
+/* Whole-range phase: n_function_name(count), e.g. read_n(number_of_emails). */
+#define RUN_PHASE(timer, count, n_function_name) \
+    RUN_PHASE_CALL(timer, count, n_function_name(count))
 
+/* Sub-range phase: n_function_name(lo, hi), e.g. delete_range(lo, hi). */
+#define RUN_PHASE_RANGE(timer, lo, hi, n_function_name) \
+    RUN_PHASE_CALL(timer, (int)((hi) - (lo)), n_function_name(lo, hi))
+
+TEST(DBJ_EMAIL_CRUD, TEST)
+{
     int number_of_emails = g_email_crud_config.number_of_emails;
 
-    RUN_PHASE(create, number_of_emails, create_n);
-    RUN_PHASE(read,   number_of_emails, read_n);
+    RUN_PHASE_CALL(create, number_of_emails, create_n(0, number_of_emails));
+    RUN_PHASE(read, number_of_emails, read_n);
     RUN_PHASE(update, number_of_emails, update_n);
     RUN_PHASE(delete, number_of_emails, delete_n);
+}
+
+/* Exercises the free-list reuse path, not just the append-only path
+   TEST above covers: create 10, delete the last 5 (freeing their
+   slots), create 10 more (the first 5 reuse those freed slots before
+   high_water_mark grows further), then read/delete everything live. */
+TEST(DBJ_EMAIL_TRICKY, TRICKY_TEST)
+{
+    RUN_PHASE_CALL(create, 10, create_n(0, 10));
+
+    RUN_PHASE_RANGE(delete, g_ids_count - 5, g_ids_count, delete_range);
+
+    RUN_PHASE_CALL(create, 10, create_n(g_ids_count, 10));
+
+    RUN_PHASE(read, g_ids_count, read_n);
+    RUN_PHASE(delete, g_ids_count, delete_n);
 }
