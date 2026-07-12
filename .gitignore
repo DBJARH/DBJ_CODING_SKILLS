@@ -21,3 +21,7 @@ Thumbs.db
 
 # Claude Code local tool config
 .claude/
+
+# Per-machine editor config (compilerPath/intelliSenseMode differ
+# between the Windows and Linux dev machines) — never checked in
+.vscode/
