@@ -22,10 +22,5 @@ $(BUILD_DIR):
 $(TARGET): dbj_email_crud.c dbj_email_record.h dbj_email_storage_result.h dbj_email_storage.h ../toplevel/simple_log.h ../third_party/inifile/inifile.h | $(BUILD_DIR)
 	$(CC) $(CFLAGS) -o $(TARGET) dbj_email_crud.c
 
-ifeq ($(OS),Windows_NT)
-clean:
-	del /f /q $(subst /,\,$(TARGET)).exe 2>nul
-else
 clean:
 	rm -f $(TARGET) $(TARGET).exe
-endif
