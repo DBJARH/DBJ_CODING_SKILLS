@@ -2,7 +2,8 @@
 /*
     2026JUL06       (c) dbj@dbj.org
 
-    EmailStorageResult — see dbj_discriminated_union.md.
+    EmailStorageResult — see general_design.md, section
+    "EmailStorageResult".
     Requires dbj_email_record.h (EmailRecord) to be included first.
 */
 

@@ -12,11 +12,13 @@ unions / tagged records versus OOP-style dispatch.
   `inspect`-shaped mistake, and why tagged unions resurfaced in
   Rust/Swift/Kotlin — see the published article:
   [iceberg.dbj.org/posts/tonyhoare](https://iceberg.dbj.org/posts/tonyhoare/).
-  - [tribute_to_tony/dbj_discriminated_union.c](tribute_to_tony/dbj_discriminated_union.c) —
-    the current POC.
-  - [tribute_to_tony/dbj_err.h](tribute_to_tony/dbj_err.h) /
-    [dbj_log.h](tribute_to_tony/dbj_log.h) — shared `Result` type and
-    logging macros, factored out of the POC.
+  - [tribute_to_tony/dbj_email_crud.c](tribute_to_tony/dbj_email_crud.c) —
+    the current POC, built on
+    [dbj_email_record.h](tribute_to_tony/dbj_email_record.h),
+    [dbj_email_storage_result.h](tribute_to_tony/dbj_email_storage_result.h)
+    and [dbj_email_storage.h](tribute_to_tony/dbj_email_storage.h).
+  - [tribute_to_tony/general_design.md](tribute_to_tony/general_design.md) —
+    the design document for this POC.
   - [tribute_to_tony/top_level_requirements.md](tribute_to_tony/top_level_requirements.md) —
     requirements this POC implements (see RQ01).
   - [tribute_to_tony/analyzed_vibecode/](tribute_to_tony/analyzed_vibecode/) —

@@ -2,7 +2,8 @@
 /*
     2026JUL06       (c) dbj@dbj.org
 
-    EmailRecord is the central, tagged type — see dbj_discriminated_union.md.
+    EmailRecord is the central, tagged type — see general_design.md,
+    section "EmailRecord".
     Storage is a logical array of EmailRecord; the record's own slot_id
     also serves as its index in that array. Occupancy (whether a slot
     holds a live record) is tracked separately by storage (see
@@ -10,12 +11,13 @@
     reserved "empty" id here -- every value of EmailId, including 0, can
     be a real record's slot_id.
 
-    Two ids, two different lifetimes:
+    Two ids, two different lifetimes (general_design.md, "EmailRecord"
+    has the full discussion):
       - slot_id  -- the array index; reused by a different record once
                      its slot is freed and reissued (see the free list
                      in dbj_email_storage.h). What CRUD actually keys on.
-      - unique_id -- a monotonic counter value assigned once on create,
-                     never reused. Not used by CRUD/lookup anywhere; it
+      - unique_id -- a counter value assigned once on create, never
+                     reused. Not used by CRUD/lookup anywhere; it
                      exists to make the slot-id-gets-reused behavior
                      legible -- read it back after a slot is reused and
                      it will differ from the id the previous occupant

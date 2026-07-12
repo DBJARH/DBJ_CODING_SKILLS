@@ -19,9 +19,9 @@ package manager, or test runner across the repo.
   `enum`+`match`) is written up at
   https://iceberg.dbj.org/posts/tonyhoare/ — do not re-derive that essay
   in this repo's docs, link to it instead.
-  - `tribute_to_tony/dbj_discriminated_union.c` is the current POC;
-    `dbj_err.h`/`dbj_log.h` hold the shared `Result` type and logging
-    macros it includes. `tribute_to_tony/dbj_discriminated_union.md`
+  - `tribute_to_tony/dbj_email_crud.c` is the current POC, built on
+    `dbj_email_record.h`/`dbj_email_storage_result.h`/
+    `dbj_email_storage.h`. `tribute_to_tony/general_design.md`
     is the main design document for this POC — check it before
     changing the .c file, and keep it updated when the design changes.
   - `tribute_to_tony/top_level_requirements.md` is the source of truth
@@ -52,7 +52,7 @@ tries to mirror the code exactly has failed at being a diagram.
 Design docs in this repo place themselves in the DBJ Taxonomy — see the
 core definition: https://method.dbj.org/taxonomy_core.html. A design
 doc should state its Top category and Capability up front (see
-`tribute_to_tony/dbj_discriminated_union.md` for the pattern), so the
+`tribute_to_tony/general_design.md` for the pattern), so the
 reader — human or AI — knows where the work sits in the information
 space before reading further.
 

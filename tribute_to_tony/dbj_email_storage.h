@@ -2,7 +2,8 @@
 /*
     2026JUL06       (c) dbj@dbj.org
 
-    EmailStorage — see dbj_discriminated_union.md.
+    EmailStorage — see general_design.md, section "EmailStorage"
+    (and "Free Slots concept" for the create/delete slot-reuse flow).
     Requires dbj_email_record.h and dbj_email_storage_result.h to be
     included first.
 */
@@ -52,12 +53,12 @@ struct EmailStorage {
 /*
  * create_email_storage_instance() wires the CRUD function pointers into
  * the single module-level EmailStorage and returns its address (see
- * "Notice on user required and assumed behavior" in
- * dbj_discriminated_union.md) — every caller shares the same records
- * array, so a copy-by-value here would let each caller's struct go
- * stale the moment any CRUD verb runs against the singleton. Callers
- * never pass storage in by hand, so there is no `self` parameter on any
- * CRUD verb.
+ * "Notice on user required and assumed behavior" in general_design.md,
+ * section "User / EmailStorage interaction") — every caller shares the
+ * same records array, so a copy-by-value here would let each caller's
+ * struct go stale the moment any CRUD verb runs against the singleton.
+ * Callers never pass storage in by hand, so there is no `self`
+ * parameter on any CRUD verb.
  *
  * Despite the name it is safe to call more than once (it just re-wires
  * the same function pointers), but callers should still only call it
@@ -72,8 +73,8 @@ EmailStorage* create_email_storage_instance(void);
 #include <string.h>
 
 /*
- * Synopsys 1 (dbj_discriminated_union.md) drops `self` from every CRUD
- * verb, so the CRUD functions below close over this single
+ * The EmailStorage synopsis in general_design.md drops `self` from
+ * every CRUD verb, so the CRUD functions below close over this single
  * module-level instance instead of receiving storage as a parameter.
  * free_list_head starts at EMAIL_STORAGE_FREE_LIST_EMPTY (0-init would
  * wrongly mean "slot 0 is free"), so it is set explicitly in

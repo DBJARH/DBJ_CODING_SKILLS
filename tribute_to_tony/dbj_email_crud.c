@@ -3,7 +3,7 @@
 
     gcc -std=c2x -Wall -Wswitch -Werror -I ../third_party/tau -o dbj_email_crud dbj_email_crud.c
 
-    See dbj_discriminated_union.md for the design this implements.
+    See general_design.md for the design this implements.
     Single header (STB) style: dbj_email_record.h, dbj_email_storage_result.h
     and dbj_email_storage.h are declaration-only unless their
     *_IMPLEMENTATION macro is defined first, as done below.
@@ -36,17 +36,20 @@
     so each of the N emails is distinguishable in storage/logs.
 
     NUMBER_OF_EMAILS must not exceed EMAIL_STORAGE_CAPACITY (a compile
-    time setting, see dbj_email_storage.h) -- create_n_emails checks
-    this once, before creating anything, and aborts the whole run via
-    REQUIRE_TRUE if it does not hold.
+    time setting, see dbj_email_storage.h) -- load_and_validate_config
+    checks this once, against the ini file, before any CRUD verb runs,
+    and aborts the whole run via REQUIRE_TRUE if it does not hold.
 
-    The four CRUD verbs are four phases of one TEST case, not four
-    separate TEST cases: tau does not run TEST cases in declaration
+    Each TEST case runs its CRUD verbs as phases of that one test, not
+    as separate TEST cases: tau does not run TEST cases in declaration
     order (verified -- it runs them in reverse), so separate CREATE/
-    READ/UPDATE/DELETE TEST cases could not reliably share the N ids
-    CREATE produces. One TEST, run against the one storage singleton
-    (see dbj_email_storage.h), avoids relying on any cross-test
-    ordering guarantee tau does not provide.
+    READ/UPDATE/DELETE TEST cases could not reliably share the ids
+    CREATE produces. TEST (DBJ_EMAIL_CRUD.TEST) runs the four CRUD
+    verbs once each; TRICKY_TEST (DBJ_EMAIL_TRICKY.TRICKY_TEST) adds a
+    ranged delete/create to exercise free-list slot reuse -- see
+    general_design.md, "Free Slots concept". Both run against the one
+    storage singleton (see dbj_email_storage.h), avoiding reliance on
+    any cross-test ordering guarantee tau does not provide.
 
     Per-email logging would be N lines per phase, which is not useful
     signal at N=1024, so each phase logs only once at its start and
@@ -174,11 +177,12 @@ static void format_subject_with_seq(char dest[static EMAIL_RECORD_SUBJECT_SIZE],
 
 /* ── one phase per CRUD verb, kept as plain helpers (not TEST cases) so
    they can share g_ids across calls -- see the file header comment on
-   why crud_n_flow is one TEST, not four. Each reaches g_email_crud_config/g_ids/
-   storage_instance() directly rather than taking them as params: there
-   is exactly one caller (the TEST below) and those three are already
-   file-scope singletons, so threading them through as parameters would
-   just be repeating the same three arguments at every call site.
+   why each TEST case runs its CRUD verbs as phases, not as separate
+   TEST cases. Each reaches g_email_crud_config/g_ids/storage_instance()
+   directly rather than taking them as params: callers are TEST and
+   TRICKY_TEST below, and those three are already file-scope
+   singletons, so threading them through as parameters would just be
+   repeating the same three arguments at every call site.
    number_of_emails is the only value that is genuinely call-specific. ── */
 
 /* create_email_storage_instance() re-wires the same function pointers
