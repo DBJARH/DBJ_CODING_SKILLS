@@ -24,11 +24,17 @@ typedef struct {
     char name[64];
 } Widget;
 
+typedef struct {
+    int  id;
+    char name[64];
+} Midget;
+
 #define DBJ_MAKERESULT_IMPLEMENTATION
 #include "dbj_result.h"
 
 // -----------------------------------------------------------------------------
 DBJ_MAKERESULT(Widget);
+DBJ_MAKERESULT(Midget);
 
 // -----------------------------------------------------------------------------
 static WidgetResult make_widget(int id, const char name[static 1]) {
@@ -40,37 +46,57 @@ static WidgetResult make_widget(int id, const char name[static 1]) {
     return Widget_make_ok(w);
 }
 // -----------------------------------------------------------------------------
+static MidgetResult make_midget(int id, const char name[static 1]) {
+    if (id < 0)
+        return Midget_make_err(__func__, "negative id");
+
+    Midget m = {.id = id};
+    snprintf(m.name, sizeof m.name, "%s", name);
+    return Midget_make_ok(m);
+}
+// -----------------------------------------------------------------------------
+static void show_widget_result(WidgetResult r) {
+    switch (r.tag) {
+        case DBJ_RESULT_OK:
+            SIMPLE_LOG("ok: id=%d name=%s", r.Widget_OK.my_value.id, r.Widget_OK.my_value.name);
+            break;
+        case DBJ_RESULT_ERR:
+            SIMPLE_LOG("err: location=%s message=%s", r.Widget_ERR.location, r.Widget_ERR.message);
+            break;
+    }
+}
+
+static void show_midget_result(MidgetResult r) {
+    switch (r.tag) {
+        case DBJ_RESULT_OK:
+            SIMPLE_LOG("ok: id=%d name=%s", r.Midget_OK.my_value.id, r.Midget_OK.my_value.name);
+            break;
+        case DBJ_RESULT_ERR:
+            SIMPLE_LOG("err: location=%s message=%s", r.Midget_ERR.location, r.Midget_ERR.message);
+            break;
+    }
+}
+
+#define SHOW_RESULT(x_) _Generic((x_),        \
+    WidgetResult: show_widget_result,         \
+    MidgetResult: show_midget_result)(x_)
+// -----------------------------------------------------------------------------
 static int test_one(const char * argv[static 1]) {
 
     defer {
         SIMPLE_LOG("test_one( argv[0]: %s ): leaving scope", argv[0]);
     }
 
-    WidgetResult ok_result = make_widget(1, "gizmo");
-    switch (ok_result.tag) {
-        case DBJ_RESULT_OK:
-            SIMPLE_LOG("ok: id=%d name=%s", ok_result.Widget_OK.my_value.id, ok_result.Widget_OK.my_value.name);
-            break;
-        case DBJ_RESULT_ERR:
-            SIMPLE_LOG("unexpected err: %s", ok_result.Widget_ERR.message);
-            break;
-// -Wswitch makes GCC warn when a switch over an enum doesn't cover every enumerator, 
-//  provided there's no default: case. 
-//  Combined with -Werror, that warning becomes a hard compile error.            
-    }
+    SHOW_RESULT(make_widget(1, "gizmo"));
+    SHOW_RESULT(make_midget(1, "gizmo-jr"));
 
-    WidgetResult err_result = make_widget(-1, "bad");
-    switch (err_result.tag) {
-        case DBJ_RESULT_OK:
-            SIMPLE_LOG("unexpected ok: id=%d", err_result.Widget_OK.my_value.id);
-            break;
-        case DBJ_RESULT_ERR:
-            SIMPLE_LOG("err: location=%s message=%s", err_result.Widget_ERR.location, err_result.Widget_ERR.message);
-            break;
-    }
+    SHOW_RESULT(make_widget(-1, "bad"));
+    SHOW_RESULT(make_midget(-1, "bad-jr"));
 
-    WidgetResult ok_again = Widget_make_ok((Widget){.id = 2, .name = "widget-two"});
-    SIMPLE_LOG("ok_again: id=%d name=%s", ok_again.Widget_OK.my_value.id, ok_again.Widget_OK.my_value.name);
+    SHOW_RESULT(Widget_make_ok((Widget){.id = 2, .name = "widget-two"}));
+    SHOW_RESULT(Midget_make_ok((Midget){.id = 2, .name = "midget-two"}));
+
+    SHOW_RESULT(Midget_make_err(__func__, "bad midget"));
 
     return 0;
 }
