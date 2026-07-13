@@ -10,6 +10,7 @@
 
 /* ── logging ───────────────────────────────────────────────────── */
 
+#ifndef SIMPLE_LOG
 #define SIMPLE_LOG(fmt, ...) \
     fprintf(stdout, "[%6d] " fmt "\n", __LINE__ __VA_OPT__(, ) __VA_ARGS__)
-
+#endif
