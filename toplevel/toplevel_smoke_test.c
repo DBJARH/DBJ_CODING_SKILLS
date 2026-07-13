@@ -54,6 +54,10 @@ static MidgetResult make_midget(int id, const char name[static 1]) {
     snprintf(m.name, sizeof m.name, "%s", name);
     return Midget_make_ok(m);
 }
+
+#define MAKE_RESULT(v_) _Generic((v_),  \
+    Widget: Widget_make_ok,             \
+    Midget: Midget_make_ok)(v_)
 // -----------------------------------------------------------------------------
 static void show_widget_result(WidgetResult r) {
     switch (r.tag) {
@@ -93,8 +97,8 @@ static int test_one(const char * argv[static 1]) {
     SHOW_RESULT(make_widget(-1, "bad"));
     SHOW_RESULT(make_midget(-1, "bad-jr"));
 
-    SHOW_RESULT(Widget_make_ok((Widget){.id = 2, .name = "widget-two"}));
-    SHOW_RESULT(Midget_make_ok((Midget){.id = 2, .name = "midget-two"}));
+    SHOW_RESULT(MAKE_RESULT(((Widget){.id = 2, .name = "widget-two"})));
+    SHOW_RESULT(MAKE_RESULT(((Midget){.id = 2, .name = "midget-two"})));
 
     SHOW_RESULT(Midget_make_err(__func__, "bad midget"));
 
