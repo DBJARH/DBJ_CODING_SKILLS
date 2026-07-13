@@ -33,11 +33,11 @@ DBJ_MAKERESULT(Widget);
 // -----------------------------------------------------------------------------
 static WidgetResult make_widget(int id, const char name[static 1]) {
     if (id < 0)
-        return Widget_result_err(__func__, "negative id");
+        return Widget_make_err(__func__, "negative id");
 
     Widget w = {.id = id};
     snprintf(w.name, sizeof w.name, "%s", name);
-    return Widget_result_ok(w);
+    return Widget_make_ok(w);
 }
 // -----------------------------------------------------------------------------
 static int test_one(const char * argv[static 1]) {
@@ -69,9 +69,7 @@ static int test_one(const char * argv[static 1]) {
             break;
     }
 
-    /* derive another result of the same tag via .make, without naming
-       the factory function again -- same pattern as dbj_email_storage_result.h */
-    WidgetResult ok_again = ok_result.Widget_OK.make((Widget){.id = 2, .name = "widget-two"});
+    WidgetResult ok_again = Widget_make_ok((Widget){.id = 2, .name = "widget-two"});
     SIMPLE_LOG("ok_again: id=%d name=%s", ok_again.Widget_OK.my_value.id, ok_again.Widget_OK.my_value.name);
 
     return 0;
