@@ -1,0 +1,14 @@
+{
+  "version": "0.2",
+  "language": "en",
+  "words": [
+  ],
+  "ignorePaths": [
+    "node_modules",
+    ".git",
+    "**/*.c",
+    "**/*.h",
+    "**/Makefile",
+    "**/.*"
+  ]
+}
