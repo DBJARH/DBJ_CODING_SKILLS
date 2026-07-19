@@ -1,3 +1,4 @@
+soa_aso_comparator discarded for now.c
 # Build artifacts (gcc/mingw)
 *.exe
 *.o
