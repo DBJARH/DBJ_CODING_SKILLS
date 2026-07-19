@@ -1,13 +1,13 @@
-// strassen_bench.c - Benchmark naive vs Strassen
-// Compile: gcc-15 -std=c23 -O3 -o bench strassen_bench.c
-// Run: ./bench
+// strassen.c - Benchmark naive vs Strassen
+// Compile: make.cmd bench.exe
+// Run: bench.exe
 
-#define UBENCH_STATIC
-#include "ubench.h"
+#include "../dbj_nanobench/dbj_nanobench.h"
 
 /*
- * gcc_defer.h provides a macro polyfill for the `defer` keyword using GCC's
- * nested-function + cleanup-attribute extension (technique by Jens Gustedt).
+ * <dbj_defer.h> provides a macro polyfill for the `defer` keyword using
+ * GCC's nested-function + cleanup-attribute extension (technique by
+ * Jens Gustedt). Resolved via -I../toplevel on the compile line.
  *
  * GCC 16+ is expected to support `defer` natively via the `-fdefer-ts` flag
  * (ISO/DIS TS 25755), which causes the compiler to define __STDC_DEFER_TS25755__.
@@ -20,11 +20,11 @@
  * signal.
  *
  * Note: MSVC/IntelliSense will flag the `auto void F(int*)` inside
- * gcc_defer.h as invalid — those are false positives.  The header is
+ * dbj_defer.h as invalid — those are false positives.  The header is
  * GCC-only and requires GNU extensions (-std=gnu23 or implicit on gcc).
  */
 #ifndef __STDC_DEFER_TS25755__
-#  include "gcc_defer.h"
+#  include <dbj_defer.h>
 #endif
 #include <stdio.h>
 #include <stdlib.h>
@@ -116,12 +116,10 @@ void strassen(int n, double A[n][n], double B[n][n], double C[n][n]) {
     }
 }
 
-// Benchmarks for 128x128
-UBENCH_EX(matrix_128, naive) {
-    int n = 128;
-    double (*A)[n] = malloc(sizeof(double[n][n]));
-    double (*B)[n] = malloc(sizeof(double[n][n]));
-    double (*C)[n] = malloc(sizeof(double[n][n]));
+static void dbj_nb_bench_matrix(int n) {
+    double (*A)[n] = malloc(sizeof(double[n][n])); defer { free(A); };
+    double (*B)[n] = malloc(sizeof(double[n][n])); defer { free(B); };
+    double (*C)[n] = malloc(sizeof(double[n][n])); defer { free(C); };
 
     for (int i = 0; i < n; i++)
         for (int j = 0; j < n; j++) {
@@ -129,113 +127,26 @@ UBENCH_EX(matrix_128, naive) {
             B[i][j] = i - j;
         }
 
-    UBENCH_DO_BENCHMARK() {
+    char naive_name[64];
+    char strassen_name[64];
+    snprintf(naive_name, sizeof(naive_name), "matrix_%d naive (nanobench)", n);
+    snprintf(strassen_name, sizeof(strassen_name), "matrix_%d strassen (nanobench)", n);
+
+    DBJ_BENCH(naive_name, double, 3, 10, {
         naive_mult(n, A, B, C);
-    }
+        DBJ_NB_val = C[0][0];
+    });
 
-    free(A); free(B); free(C);
-}
-
-UBENCH_EX(matrix_128, strassen) {
-    int n = 128;
-    double (*A)[n] = malloc(sizeof(double[n][n])); defer { free(A); };
-    double (*B)[n] = malloc(sizeof(double[n][n])); defer { free(B); };
-    double (*C)[n] = malloc(sizeof(double[n][n])); defer { free(C); };
-
-    for (int i = 0; i < n; i++)
-        for (int j = 0; j < n; j++) {
-            A[i][j] = i + j;
-            B[i][j] = i - j;
-        }
-
-    UBENCH_DO_BENCHMARK() {
+    DBJ_BENCH(strassen_name, double, 3, 10, {
         strassen(n, A, B, C);
-    }
-
-    // free(A); free(B); free(C);
+        DBJ_NB_val = C[0][0];
+    });
 }
 
-// Benchmarks for 256x256
-UBENCH_EX(matrix_256, naive) {
-    int n = 256;
-    double (*A)[n] = malloc(sizeof(double[n][n])); defer { free(A); };
-    double (*B)[n] = malloc(sizeof(double[n][n])); defer { free(B); };
-    double (*C)[n] = malloc(sizeof(double[n][n])); defer { free(C); };
-    
-    for (int i = 0; i < n; i++)
-        for (int j = 0; j < n; j++) {
-            A[i][j] = i + j;
-            B[i][j] = i - j;
-        }
-    
-    UBENCH_DO_BENCHMARK() {
-        naive_mult(n, A, B, C);
-    }
-    
-    // free(A); free(B); free(C);
+int main(int argc, const char *const argv[static argc + 1]) {
+    (void)argc; (void)argv;
+    dbj_nb_bench_matrix(128);
+    dbj_nb_bench_matrix(256);
+    dbj_nb_bench_matrix(512);
+    return 0;
 }
-
-UBENCH_EX(matrix_256, strassen) {
-    int n = 256;
-    double (*A)[n] = malloc(sizeof(double[n][n])); defer { free(A); };
-    double (*B)[n] = malloc(sizeof(double[n][n])); defer { free(B); };
-    double (*C)[n] = malloc(sizeof(double[n][n])); defer { free(C); };
-    
-    for (int i = 0; i < n; i++)
-        for (int j = 0; j < n; j++) {
-            A[i][j] = i + j;
-            B[i][j] = i - j;
-        }
-    
-    UBENCH_DO_BENCHMARK() {
-        strassen(n, A, B, C);
-    }
-    
-    // free(A); free(B); free(C);
-}
-
-// Benchmarks for 512x512
-UBENCH_EX(matrix_512, naive) {
-    int n = 512;
-    double (*A)[n] = malloc(sizeof(double[n][n])); defer { free(A); };
-    double (*B)[n] = malloc(sizeof(double[n][n])); defer { free(B); };
-    double (*C)[n] = malloc(sizeof(double[n][n])); defer { free(C); };
-
-    for (int i = 0; i < n; i++)
-        for (int j = 0; j < n; j++) {
-            A[i][j] = i + j;
-            B[i][j] = i - j;
-        }
-
-    UBENCH_DO_BENCHMARK() {
-        naive_mult(n, A, B, C);
-    }
-
-    // free(A); free(B); free(C);
-}
-
-UBENCH_EX(matrix_512, strassen) {
-    int n = 512;
-    double (*A)[n] = malloc(sizeof(double[n][n])); defer { free(A); };
-    double (*B)[n] = malloc(sizeof(double[n][n])); defer { free(B); };
-    double (*C)[n] = malloc(sizeof(double[n][n])); defer { free(C); };
-
-    for (int i = 0; i < n; i++)
-        for (int j = 0; j < n; j++) {
-            A[i][j] = i + j;
-            B[i][j] = i - j;
-        }
-
-    UBENCH_DO_BENCHMARK() {
-        strassen(n, A, B, C);
-    }
-
-    // free(A); free(B); free(C);
-}
-
-// instead of UBENCH_MAIN(); we go by foot
-
-  UBENCH_STATE();                         
-  int main(int argc, const char *const argv[]) { 
-    return ubench_main(argc, argv);              
-  }

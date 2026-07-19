@@ -4,13 +4,13 @@
 Verbatim copy of `include/linux/cleanup.h` from `torvalds/linux`
 (master, fetched 2026-07-13), kept here purely to study and mine for
 tricks. Nothing in this file is built or included by anything in this
-repo, and it never will be — see `toplevel/defer.h` for the `defer`
+repo, and it never will be — see `toplevel/dbj_defer.h` for the `defer`
 macro actually in use.
 
 **Why it's here, not used directly**
 
 - This repo already has its own `defer`: Jens Gustedt's
-  `[[gnu::cleanup]]`-based macro in `toplevel/defer.h`. C23 does not
+  `[[gnu::cleanup]]`-based macro in `toplevel/dbj_defer.h`. C23 does not
   yet have an officially standardized `defer` statement, so Gustedt's
   macro — not this kernel header — is the standing choice.
 - This repo is single-compiler by policy: GNU C (GCC) 15 or later,
@@ -24,7 +24,7 @@ macro actually in use.
   convention just to get the two ideas actually worth having:
   `guard()` (acquire, auto-release at scope exit) and `scoped_guard()`
   (same, but bound to a block). Both are straightforward to reimplement
-  directly on top of `toplevel/defer.h` when the mutex work in
+  directly on top of `toplevel/dbj_defer.h` when the mutex work in
   `EmailStorage` (see `tribute_to_tony/general_design.md`, "Note on
   Multi Threading") is actually designed — no kernel macros required.
 

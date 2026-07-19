@@ -12,7 +12,7 @@ This is free software; see the source for copying conditions.  There is NO
 warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 
 Clang is rejected even though it defines __GNUC__ for compatibility:
-toplevel/defer.h relies on GNU nested functions ([[gnu::cleanup]] plus
+toplevel/dbj_defer.h relies on GNU nested functions ([[gnu::cleanup]] plus
 an `auto void F(int*)` local function), which Clang has never
 implemented and does not plan to.
 

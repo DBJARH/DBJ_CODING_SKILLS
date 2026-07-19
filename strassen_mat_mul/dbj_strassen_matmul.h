@@ -27,8 +27,9 @@ void strassen(int n, double A[n][n], double B[n][n], double C[n][n]);
 #undef DBJ_STRASSEN_MATMUL_IMPLEMENTATION
 
 /*
- * gcc_defer.h provides a macro polyfill for the `defer` keyword using GCC's
- * nested-function + cleanup-attribute extension (technique by Jens Gustedt).
+ * <dbj_defer.h> provides a macro polyfill for the `defer` keyword using
+ * GCC's nested-function + cleanup-attribute extension (technique by
+ * Jens Gustedt). Resolved via -I../toplevel on the compile line.
  *
  * GCC 16+ is expected to support `defer` natively via the `-fdefer-ts` flag
  * (ISO/DIS TS 25755), which causes the compiler to define __STDC_DEFER_TS25755__.
@@ -41,11 +42,11 @@ void strassen(int n, double A[n][n], double B[n][n], double C[n][n]);
  * signal.
  *
  * Note: MSVC/IntelliSense will flag the `auto void F(int*)` inside
- * gcc_defer.h as invalid — those are false positives.  The header is
+ * dbj_defer.h as invalid — those are false positives.  The header is
  * GCC-only and requires GNU extensions (-std=gnu23 or implicit on gcc).
  */
 #ifndef __STDC_DEFER_TS25755__
-#  include "gcc_defer.h"
+#  include <dbj_defer.h>
 #endif
 #include <stdlib.h>
 

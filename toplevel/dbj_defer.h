@@ -42,7 +42,7 @@ gcc’s legacy __attribute__((...)) syntax without problems.
 
 */
 
-#include "required_compile_time.h"
+#include <dbj_required_compile_time.h>
 
 #define __DEFER__(F, V)      \
   auto void F(int*);         \

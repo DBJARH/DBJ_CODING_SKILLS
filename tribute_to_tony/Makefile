@@ -1,4 +1,4 @@
-CFLAGS    := -std=c2x -Wall -Wswitch -Werror -I ../third_party/tau
+CFLAGS    := -std=c2x -Wall -Wswitch -Werror -I ../third_party/tau -I ../toplevel
 BUILD_DIR := ../builds
 TARGET    := $(BUILD_DIR)/dbj_email_crud
 
@@ -19,7 +19,7 @@ all: $(TARGET)
 $(BUILD_DIR):
 	$(MKDIR)
 
-$(TARGET): dbj_email_crud.c dbj_email_record.h dbj_email_storage_result.h dbj_email_storage.h ../toplevel/simple_log.h ../third_party/inifile/inifile.h | $(BUILD_DIR)
+$(TARGET): dbj_email_crud.c dbj_email_record.h dbj_email_storage_result.h dbj_email_storage.h ../toplevel/dbj_simple_log.h ../third_party/inifile/inifile.h | $(BUILD_DIR)
 	$(CC) $(CFLAGS) -o $(TARGET) dbj_email_crud.c
 
 clean:

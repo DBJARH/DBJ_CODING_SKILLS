@@ -68,7 +68,7 @@
 #define DBJ_EMAIL_STORAGE_IMPLEMENTATION
 #include "dbj_email_storage.h"
 
-#include "../toplevel/simple_log.h"
+#include <dbj_simple_log.h>
 
 #define INIFILE_IMPLEMENTATION
 #include "../third_party/inifile/inifile.h"

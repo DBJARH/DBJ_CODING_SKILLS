@@ -26,7 +26,7 @@ extern "C" {
 typedef int errno_t;
 #endif
 
-#include "../../toplevel/defer.h"
+#include <dbj_defer.h>
 
 /* Nonzero to allow multi-line value parsing, in the style of Python's
    ConfigParser. If allowed, ini_parse() will call the handler with the same

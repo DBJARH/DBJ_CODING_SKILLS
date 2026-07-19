@@ -1,23 +1,23 @@
 /*
     2026JUL13       (c) dbj@dbj.org
 
-    Smoke test for toplevel/defer.h, toplevel/dbj_result.h and
-    toplevel/simple_log.h -- confirms the three compose: a factory
+    Smoke test for toplevel/dbj_defer.h, toplevel/dbj_result.h and
+    toplevel/dbj_simple_log.h -- confirms the three compose: a factory
     method returning a DBJ_MAKERESULT-generated tagged union, logged
     with SIMPLE_LOG, with defer used for the obligatory cleanup-on-
     scope-exit demonstration.
 
-    Build (GCC 15+ required, see required_compile_time.h):
-        gcc -std=c23 -Wall -Wextra -Wswitch -Werror -o toplevel_smoke_test.exe toplevel_smoke_test.c
+    Build (GCC 15+ required, see dbj_required_compile_time.h):
+        gcc -std=c23 -Wall -Wextra -Wswitch -Werror -I. -o toplevel_smoke_test.exe toplevel_smoke_test.c
 */
 
-#include "required_compile_time.h"
+#include <dbj_required_compile_time.h>
 
 #include <stdio.h>
 #include <string.h>
 
-#include "defer.h"
-#include "simple_log.h"
+#include <dbj_defer.h>
+#include <dbj_simple_log.h>
 
 typedef struct {
     int  id;
@@ -30,7 +30,7 @@ typedef struct {
 } Midget;
 
 #define DBJ_MAKERESULT_IMPLEMENTATION
-#include "dbj_result.h"
+#include <dbj_result.h>
 
 // -----------------------------------------------------------------------------
 DBJ_MAKERESULT(Widget);
