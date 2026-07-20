@@ -132,12 +132,12 @@ static void dbj_nb_bench_matrix(int n) {
     snprintf(naive_name, sizeof(naive_name), "matrix_%d naive (nanobench)", n);
     snprintf(strassen_name, sizeof(strassen_name), "matrix_%d strassen (nanobench)", n);
 
-    DBJ_BENCH(naive_name, double, 3, 10, {
+    DBJ_BENCH_N(naive_name, double, 3, 10, {
         naive_mult(n, A, B, C);
         DBJ_NB_val = C[0][0];
     });
 
-    DBJ_BENCH(strassen_name, double, 3, 10, {
+    DBJ_BENCH_N(strassen_name, double, 3, 10, {
         strassen(n, A, B, C);
         DBJ_NB_val = C[0][0];
     });
