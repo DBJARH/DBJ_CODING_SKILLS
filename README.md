@@ -27,6 +27,10 @@ unions / tagged records versus OOP-style dispatch.
     (`v0_initial_claude_code_vibes/`, `v1_substandard_claude_design/`)
     each paired with a review/discussion file, kept for comparison.
 
+## Building
+
+See [build.md](build.md).
+
 ## License
 
 MIT — see [LICENSE](LICENSE).
