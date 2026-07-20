@@ -27,7 +27,7 @@
  block do not collide on their hidden end-bound variable, same
  __COUNTER__ trick as toplevel/dbj_defer.h.
 */
-#include <dbj_required_compile_time.h>
+#include "dbj_required_compile_time.h"
 
 #include <stddef.h>
 
