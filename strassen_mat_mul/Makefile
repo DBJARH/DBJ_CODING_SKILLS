@@ -15,7 +15,7 @@ bench.exe: strassen.c ../toplevel/dbj_defer.h ../dbj_nanobench/dbj_nanobench.h
 strassen_bench_comparator.exe: strassen_bench_comparator.c dbj_strassen_matmul.h ../dbj_nanobench/dbj_nanobench.h
 	$(CC) $(CFLAGS) -o $@ strassen_bench_comparator.c
 
-soa_aso_comparator.exe: soa_aso_comparator.c ../toplevel/dbj_defer.h ../dbj_nanobench/dbj_nanobench.h
+soa_aso_comparator.exe: soa_aso_comparator.c dbj_strassen_matmul.h ../toplevel/dbj_defer.h ../dbj_nanobench/dbj_nanobench.h
 	$(CC) $(CFLAGS) -o $@ soa_aso_comparator.c
 
 clean:
