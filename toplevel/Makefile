@@ -1,5 +1,7 @@
 CFLAGS    := -std=c23 -Wall -Wextra -Wswitch -Werror -I.
-BUILD_DIR := ../builds
+# DBJ_BUILDS, if set in the environment, is where every folder's build
+# output goes; falls back to ../builds (repo root) if unset.
+BUILD_DIR := $(if $(DBJ_BUILDS),$(DBJ_BUILDS),../builds)
 TARGET    := $(BUILD_DIR)/toplevel_smoke_test
 
 # Windows/MinGW ships plain gcc.exe (gcc 15+); Linux distros still default

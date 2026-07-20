@@ -10,6 +10,10 @@ set -e
 if [ -n "$1" ]; then
     folder="$1"
     shift
+    if [ ! -d "$folder" ]; then
+        echo "$folder is not a folder"
+        exit 1
+    fi
     if [ ! -f "$folder/Makefile" ]; then
         echo "No Makefile in $folder"
         exit 1

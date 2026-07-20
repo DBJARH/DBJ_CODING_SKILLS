@@ -9,6 +9,10 @@ setlocal
 
 if "%~1"=="" goto build_all
 
+if not exist "%~1\" (
+    echo "%~1" is not a folder
+    exit /b 1
+)
 if not exist "%~1\Makefile" (
     echo No Makefile in "%~1"
     exit /b 1
