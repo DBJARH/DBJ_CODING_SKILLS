@@ -35,6 +35,23 @@ export DBJ_BUILDS=/wherever/you/want
 | `tribute_to_tony/` | `dbj_email_crud` |
 | `dbj_str/` | `dbj_str_test` |
 | `toplevel/` | `toplevel_smoke_test` |
-| `strassen_mat_mul/` | `bench`, `strassen_bench_comparator`, `soa_aso_comparator` |
+| `strassen_mat_mul/` | `bench`, `strassen_bench_comparator`, `soa_aso_comparator`, `dbj_soa_aso` |
 
+## VS Code: F5 to build and debug
+
+Open any `.c` file and press **F5** — `.vscode/tasks.json` builds just
+that file (`-std=gnu23 -g`, both `-I ../toplevel` and
+`-I ../third_party/tau` so every file's includes resolve), then
+`.vscode/launch.json` launches it under `gdb` with breakpoints working.
+
+This is a separate, quicker path from the Makefile build above, not a
+replacement for it:
+
+- Output lands next to the source file (`<file>.exe`), **not** under
+  `$DBJ_BUILDS`/`../builds` — F5 doesn't go through `make` at all.
+- No `-Werror` (a stray warning shouldn't block a debug session), so
+  it's slightly less strict than the real Makefile build.
+
+Use F5 for step-through debugging; use `build.cmd`/`build.sh` (or plain
+`make`) for anything where the exact flags or output location matter.
 
