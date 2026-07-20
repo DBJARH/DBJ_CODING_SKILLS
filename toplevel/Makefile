@@ -19,7 +19,7 @@ all: $(TARGET)
 $(BUILD_DIR):
 	$(MKDIR)
 
-$(TARGET): toplevel_smoke_test.c dbj_defer.h dbj_result.h dbj_simple_log.h dbj_required_compile_time.h | $(BUILD_DIR)
+$(TARGET): toplevel_smoke_test.c dbj_defer.h dbj_result.h dbj_simple_log.h dbj_macros.h dbj_clintro.h dbj_required_compile_time.h | $(BUILD_DIR)
 	$(CC) $(CFLAGS) -o $(TARGET) toplevel_smoke_test.c
 
 clean:

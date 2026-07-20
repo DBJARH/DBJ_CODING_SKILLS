@@ -1,11 +1,13 @@
 /*
     2026JUL13       (c) dbj@dbj.org
 
-    Smoke test for toplevel/dbj_defer.h, toplevel/dbj_result.h and
-    toplevel/dbj_simple_log.h -- confirms the three compose: a factory
-    method returning a DBJ_MAKERESULT-generated tagged union, logged
-    with SIMPLE_LOG, with defer used for the obligatory cleanup-on-
-    scope-exit demonstration.
+    Smoke test for toplevel/dbj_defer.h, toplevel/dbj_result.h,
+    toplevel/dbj_simple_log.h, toplevel/dbj_macros.h and
+    toplevel/dbj_clintro.h -- confirms the five compose: a CLI intro
+    banner, a factory method returning a DBJ_MAKERESULT-generated
+    tagged union, logged with SIMPLE_LOG, with defer used for the
+    obligatory cleanup-on-scope-exit demonstration, and DBJ_LOOP used to
+    drive the demonstration N times.
 
     Build (GCC 15+ required, see dbj_required_compile_time.h):
         gcc -std=c23 -Wall -Wextra -Wswitch -Werror -I. -o toplevel_smoke_test.exe toplevel_smoke_test.c
@@ -18,6 +20,8 @@
 
 #include <dbj_defer.h>
 #include <dbj_simple_log.h>
+#include <dbj_macros.h>
+#include <dbj_clintro.h>
 
 typedef struct {
     int  id;
@@ -102,10 +106,15 @@ static int test_one(const char * argv[static 1]) {
 
     SHOW_RESULT(Midget_make_err(__func__, "bad midget"));
 
+    DBJ_LOOP(3) {
+        SHOW_RESULT(make_widget((int)loop_counter, "looped-widget"));
+    }
+
     return 0;
 }
 
 int main (const int argc, const char * argv[static argc + 1])
 {
+    dbj_clintro("toplevel_smoke_test", "0.1.0");
     return test_one(argv);
 }

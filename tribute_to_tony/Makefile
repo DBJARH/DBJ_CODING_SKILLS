@@ -19,7 +19,7 @@ all: $(TARGET)
 $(BUILD_DIR):
 	$(MKDIR)
 
-$(TARGET): dbj_email_crud.c dbj_email_record.h dbj_email_storage_result.h dbj_email_storage.h ../toplevel/dbj_simple_log.h ../third_party/inifile/inifile.h | $(BUILD_DIR)
+$(TARGET): dbj_email_crud.c dbj_email_record.h dbj_email_storage_result.h dbj_email_storage.h ../toplevel/dbj_simple_log.h ../toplevel/dbj_clintro.h ../third_party/inifile/inifile.h | $(BUILD_DIR)
 	$(CC) $(CFLAGS) -o $(TARGET) dbj_email_crud.c
 
 clean:

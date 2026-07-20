@@ -69,6 +69,7 @@
 #include "dbj_email_storage.h"
 
 #include <dbj_simple_log.h>
+#include <dbj_clintro.h>
 
 #define INIFILE_IMPLEMENTATION
 #include "../third_party/inifile/inifile.h"
@@ -246,7 +247,7 @@ static void load_and_validate_config(const char *ini_path, EmailCrudConfig *cfg)
    invalid in a function returning int like this one. */
 int main(const int argc, const char *const *const argv)
 {
-    printf("Built: %s %s\n\n", __DATE__, __TIME__);
+    dbj_clintro("dbj_email_crud", "1.0.0");
 
     if (argc < 2)
     {
