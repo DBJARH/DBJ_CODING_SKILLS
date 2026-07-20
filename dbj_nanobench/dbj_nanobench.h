@@ -60,43 +60,54 @@ static inline DBJ_NB_scaled DBJ_NB_scale_ns(double ns)
 
 static inline void DBJ_NB_report(const DBJ_NB_result *r)
 {
-    DBJ_NB_scaled avg_ = DBJ_NB_scale_ns((double)r->total_ns / (double)r->iters);
-    DBJ_NB_scaled min_ = DBJ_NB_scale_ns((double)r->min_ns);
-    DBJ_NB_scaled max_ = DBJ_NB_scale_ns((double)r->max_ns);
+    /* one unit for the whole row, picked from max_ns, so avg/min/max are
+     * directly comparable instead of each floating to its own unit */
+    DBJ_NB_scaled unit_ = DBJ_NB_scale_ns((double)r->max_ns);
+    double divisor_ = unit_.value != 0.0 ? (double)r->max_ns / unit_.value : 1.0;
+    double avg_ = ((double)r->total_ns / (double)r->iters) / divisor_;
+    double min_ = (double)r->min_ns / divisor_;
+    double max_ = unit_.value;
     printf("%-24s  avg=%7.2f %-2s  min=%7.2f %-2s  max=%7.2f %-2s  (n=%llu)\n",
            r->name,
-           avg_.value, avg_.unit,
-           min_.value, min_.unit,
-           max_.value, max_.unit,
+           avg_, unit_.unit,
+           min_, unit_.unit,
+           max_, unit_.unit,
            (unsigned long long)r->iters);
 }
 
-/* --- public front macro ---
+/* --- public front macros ---
  * DBJ_BENCH(name, val_type, { ...code assigning DBJ_NB_val... });
- * DBJ_BENCH(name, val_type, warmup_n, iters_n, { ... });
+ * DBJ_BENCH_N(name, val_type, warmup_n, iters_n, { ... });
+ * DBJ_MEASURE(name, { ...code, no assignment needed... });
+ * DBJ_MEASURE_N(name, warmup_n, iters_n, { ... });
  *
- * DBJ_NB_val is the out-parameter: assign the benchmarked expression's
- * result to it inside the block so it can be DNO'd (kept from being
- * optimized away) without UB.
+ * DBJ_BENCH/DBJ_BENCH_N are for benchmarking an expression whose result
+ * must survive to be DNO'd (kept from being optimized away) — DBJ_NB_val
+ * is the out-parameter: assign the benchmarked expression's result to it
+ * inside the block.
+ *
+ * DBJ_MEASURE/DBJ_MEASURE_N are for timing a void/side-effecting call —
+ * no DBJ_NB_val, no DNO. Use these when there is nothing to assign.
  *
  * warmup_n/iters_n default to DBJ_NB_DEFAULT_WARMUP_ITERS/
- * DBJ_NB_DEFAULT_TIMED_ITERS when omitted.
+ * DBJ_NB_DEFAULT_TIMED_ITERS in the non-_N forms.
  */
 #define DBJ_NB_DEFAULT_WARMUP_ITERS 1000
 #define DBJ_NB_DEFAULT_TIMED_ITERS 100000
 
-#define DBJ_BENCH(...) DBJ_BENCH_DISPATCH(__VA_ARGS__, DBJ_BENCH5, DBJ_BENCH4, DBJ_BENCH3)(__VA_ARGS__)
-#define DBJ_BENCH_DISPATCH(_1, _2, _3, _4, _5, _NAME, ...) _NAME
-#define DBJ_BENCH3(_name, _val_type, _block) \
+#define DBJ_BENCH(_name, _val_type, _block) \
     DBJ_NB_BENCH(_name, DBJ_NB_DEFAULT_WARMUP_ITERS, DBJ_NB_DEFAULT_TIMED_ITERS, _val_type, _block)
-#define DBJ_BENCH4(_name, _val_type, _iters, _block) \
-    DBJ_NB_BENCH(_name, DBJ_NB_DEFAULT_WARMUP_ITERS, _iters, _val_type, _block)
-#define DBJ_BENCH5(_name, _val_type, _warmup, _iters, _block) \
+#define DBJ_BENCH_N(_name, _val_type, _warmup, _iters, _block) \
     DBJ_NB_BENCH(_name, _warmup, _iters, _val_type, _block)
 
-/* --- implementation macro ---
- * BENCH(name, warmup_n, iters_n, { ...code using VAL... });
- * VAL must be assigned inside the block — it gets DNO'd automatically.
+#define DBJ_MEASURE(_name, _block) \
+    DBJ_NB_MEASURE(_name, DBJ_NB_DEFAULT_WARMUP_ITERS, DBJ_NB_DEFAULT_TIMED_ITERS, _block)
+#define DBJ_MEASURE_N(_name, _warmup, _iters, _block) \
+    DBJ_NB_MEASURE(_name, _warmup, _iters, _block)
+
+/* --- implementation macros ---
+ * VAL must be assigned inside the DBJ_NB_BENCH block — it gets DNO'd
+ * automatically. DBJ_NB_MEASURE has no VAL and no DNO.
  */
 #define DBJ_NB_BENCH(_name, _warmup, _iters, _val_type, _block)                                                       \
     do                                                                                                                \
@@ -113,6 +124,28 @@ static inline void DBJ_NB_report(const DBJ_NB_result *r)
             uint64_t DBJ_NB_t0 = DBJ_NB_now_ns();                                                                     \
             _block                                                                                                    \
                 DBJ_NB_DNO(DBJ_NB_val);                                                                               \
+            uint64_t DBJ_NB_dt = DBJ_NB_now_ns() - DBJ_NB_t0;                                                         \
+            DBJ_NB_r.total_ns += DBJ_NB_dt;                                                                           \
+            if (DBJ_NB_dt < DBJ_NB_r.min_ns)                                                                          \
+                DBJ_NB_r.min_ns = DBJ_NB_dt;                                                                          \
+            if (DBJ_NB_dt > DBJ_NB_r.max_ns)                                                                          \
+                DBJ_NB_r.max_ns = DBJ_NB_dt;                                                                          \
+        }                                                                                                             \
+        DBJ_NB_report(&DBJ_NB_r);                                                                                     \
+    } while (0)
+
+#define DBJ_NB_MEASURE(_name, _warmup, _iters, _block)                                                                \
+    do                                                                                                                \
+    {                                                                                                                 \
+        DBJ_NB_result DBJ_NB_r = {.name = _name, .warmup_iters = (_warmup), .iters = (_iters), .min_ns = UINT64_MAX}; \
+        for (uint64_t DBJ_NB_i = 0; DBJ_NB_i < DBJ_NB_r.warmup_iters; DBJ_NB_i++)                                     \
+        {                                                                                                             \
+            _block                                                                                                    \
+        }                                                                                                             \
+        for (uint64_t DBJ_NB_i = 0; DBJ_NB_i < DBJ_NB_r.iters; DBJ_NB_i++)                                            \
+        {                                                                                                             \
+            uint64_t DBJ_NB_t0 = DBJ_NB_now_ns();                                                                     \
+            _block                                                                                                    \
             uint64_t DBJ_NB_dt = DBJ_NB_now_ns() - DBJ_NB_t0;                                                         \
             DBJ_NB_r.total_ns += DBJ_NB_dt;                                                                           \
             if (DBJ_NB_dt < DBJ_NB_r.min_ns)                                                                          \
@@ -156,11 +189,16 @@ static int dbj_nanobench_smoke_test(char *argv[static 1])
         DBJ_NB_val = nth_prime(DBJ_NB_SMOKE_PRIME_INDEX);
     });
 
-    // full form: name, val_type, warmup_iters, timed_iters, block
-    // DBJ_BENCH("nth_prime(1000)", long, DBJ_NB_DEFAULT_WARMUP_ITERS, DBJ_NB_DEFAULT_TIMED_ITERS, {
+    // _N form: name, val_type, warmup_iters, timed_iters, block
+    // DBJ_BENCH_N("nth_prime(1000)", long, DBJ_NB_DEFAULT_WARMUP_ITERS, DBJ_NB_DEFAULT_TIMED_ITERS, {
     //     DBJ_NB_val = nth_prime(DBJ_NB_SMOKE_PRIME_INDEX);
     // });
-    
+
+    // void/side-effecting call — no DBJ_NB_val to assign
+    DBJ_MEASURE("nth_prime(1000) side-effect only", {
+        (void)nth_prime(DBJ_NB_SMOKE_PRIME_INDEX);
+    });
+
     return 0;
 }
 

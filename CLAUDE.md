@@ -91,3 +91,7 @@ here instead.
 - Don't introduce abstractions, helper layers, or generalization beyond
   what a given file demonstrates. These are teaching examples, not a
   library.
+- Avoid single-letter variable names (loop indices aside — `i`/`j`/`k`
+  are fine). Use short words instead (`sum`, `row`, `grid`), not long
+  phrases — the goal is readability during maintenance, not brevity for
+  its own sake.

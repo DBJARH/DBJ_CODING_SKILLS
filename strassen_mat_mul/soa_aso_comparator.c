@@ -124,22 +124,22 @@ static void dbj_nb_bench_grids(int n) {
     snprintf(strassen_soa_name, sizeof(strassen_soa_name), "grids_%d strassen SoA (nanobench)", n);
     snprintf(strassen_aos_name, sizeof(strassen_aos_name), "grids_%d strassen AoS (nanobench)", n);
 
-    DBJ_BENCH(naive_soa_name, double, 3, 10, {
+    DBJ_BENCH_N(naive_soa_name, double, 3, 10, {
         naive_mult(n, soa0, soa1, soa2);
         DBJ_NB_val = soa2[0][0];
     });
 
-    DBJ_BENCH(naive_aos_name, double, 3, 10, {
+    DBJ_BENCH_N(naive_aos_name, double, 3, 10, {
         naive_mult(n, aos0, aos1, aos2);
         DBJ_NB_val = aos2[0][0];
     });
 
-    DBJ_BENCH(strassen_soa_name, double, 3, 10, {
+    DBJ_BENCH_N(strassen_soa_name, double, 3, 10, {
         strassen(n, soa0, soa1, soa2);
         DBJ_NB_val = soa2[0][0];
     });
 
-    DBJ_BENCH(strassen_aos_name, double, 3, 10, {
+    DBJ_BENCH_N(strassen_aos_name, double, 3, 10, {
         strassen(n, aos0, aos1, aos2);
         DBJ_NB_val = aos2[0][0];
     });
