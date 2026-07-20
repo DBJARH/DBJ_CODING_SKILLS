@@ -14,6 +14,8 @@ build.cmd strassen_mat_mul clean # extra args are passed through as make targets
 build.cmd                        # build every folder that has a Makefile
 ```
 
+**In case there is no argument, script will attempt to walk around the repo and build everything**
+
 ## Where the executables lands
 
 Every folder's `Makefile` writes its executable(s) under `$DBJ_BUILDS`
