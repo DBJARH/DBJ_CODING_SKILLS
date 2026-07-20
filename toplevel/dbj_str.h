@@ -1,3 +1,5 @@
+#pragma once
+
 /*
 
 DBJ String Type Definition

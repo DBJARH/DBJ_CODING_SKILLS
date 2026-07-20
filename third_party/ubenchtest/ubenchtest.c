@@ -1,4 +1,8 @@
 /*
+    DEPRECATED -- see the note at the top of ubenchtest.h. Kept as a
+    working example for reference only; not built or used by any
+    active code in this repo.
+
     Try-out for ubenchtest.h -- confirms, by actually compiling and
     running:
 
@@ -19,29 +23,9 @@
     gcc -std=c2x -Wall -Wswitch -Werror -o ubenchtest ubenchtest.c
 */
 #include "ubenchtest.h"
+#include "../../toplevel/dbj_nth_prime.h"
 
 UBENCH_STATE();
-
-static int is_prime(const int x) {
-    if (x < 2) return 0;
-    for (int d = 2; (d * d) <= x; d++) {
-        if (0 == (x % d)) return 0;
-    }
-    return 1;
-}
-
-/* 1-indexed: get_nth_prime(1) == 2, get_nth_prime(2) == 3, ... */
-static int get_nth_prime(const int n) {
-    int count = 0;
-    int candidate = 1;
-    while (count < n) {
-        candidate++;
-        if (is_prime(candidate)) {
-            count++;
-        }
-    }
-    return candidate;
-}
 
 /* only EXPECT_* is usable here in practice: ASSERT_* compiles but its
    early return on failure clashes with UBENCH_DO_BENCHMARK()'s sample
@@ -50,7 +34,7 @@ static int get_nth_prime(const int n) {
 UBENCH(DBJ, prime_1000) {
     ENABLE_UBNCH_ASSERT_MACROS();
 
-    volatile int result = get_nth_prime(1000);
+    volatile int result = dbj_get_nth_prime(1000);
     /* stops the compiler from optimizing result away as dead, since
        nothing above uses it yet -- see UBENCH_DO_NOTHING in ubenchtest.h */
     UBENCH_DO_NOTHING((void *)&result);
@@ -71,7 +55,7 @@ UBENCH(DBJ, prime_1000) {
 UBENCH(DBJ, prime_100) {
     ENABLE_UBNCH_ASSERT_MACROS();
 
-    volatile int result = get_nth_prime(100);
+    volatile int result = dbj_get_nth_prime(100);
     UBENCH_DO_NOTHING((void *)&result);
 
     EXPECT_EQ(result, 541);
@@ -88,7 +72,7 @@ UBENCH(DBJ, prime_100) {
 UBENCH(DBJ, prime_10) {
     ENABLE_UBNCH_ASSERT_MACROS();
 
-    volatile int result = get_nth_prime(10);
+    volatile int result = dbj_get_nth_prime(10);
     UBENCH_DO_NOTHING((void *)&result);
 
     EXPECT_EQ(result, 29);

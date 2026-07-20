@@ -1,14 +1,14 @@
 /*
     2026JUL08       (c) dbj@dbj.org
 
-    gcc -std=c2x -Wall -Wswitch -Werror -I ../third_party/tau -o dbj_str_test dbj_str_test.c
+    gcc -std=c2x -Wall -Wswitch -Werror -I ../third_party/tau -I ../toplevel -o dbj_str_test dbj_str_test.c
 
     Basic CRUD tests for the DEFINE_DBJSTR_TYPE macro in dbj_str.h,
     using tau (see third_party/tau) the same way dbj_email_crud.c does.
 */
 #include <string.h>
 
-#include "dbj_str.h"
+#include <dbj_str.h>
 
 DEFINE_DBJSTR_TYPE(str16, 16)
 

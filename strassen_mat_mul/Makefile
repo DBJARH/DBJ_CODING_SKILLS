@@ -26,16 +26,16 @@ all: $(BUILD_DIR)/bench.exe $(BUILD_DIR)/strassen_bench_comparator.exe $(BUILD_D
 $(BUILD_DIR):
 	$(MKDIR)
 
-$(BUILD_DIR)/bench.exe: strassen.c ../toplevel/dbj_defer.h ../dbj_nanobench/dbj_nanobench.h | $(BUILD_DIR)
+$(BUILD_DIR)/bench.exe: strassen.c ../toplevel/dbj_defer.h ../toplevel/dbj_nanobench.h | $(BUILD_DIR)
 	$(CC) $(CFLAGS) -o $@ strassen.c
 
-$(BUILD_DIR)/strassen_bench_comparator.exe: strassen_bench_comparator.c dbj_strassen_matmul.h ../dbj_nanobench/dbj_nanobench.h | $(BUILD_DIR)
+$(BUILD_DIR)/strassen_bench_comparator.exe: strassen_bench_comparator.c dbj_strassen_matmul.h ../toplevel/dbj_nanobench.h | $(BUILD_DIR)
 	$(CC) $(CFLAGS) -o $@ strassen_bench_comparator.c
 
-$(BUILD_DIR)/soa_aso_comparator.exe: soa_aso_comparator.c dbj_strassen_matmul.h ../toplevel/dbj_defer.h ../dbj_nanobench/dbj_nanobench.h | $(BUILD_DIR)
+$(BUILD_DIR)/soa_aso_comparator.exe: soa_aso_comparator.c dbj_strassen_matmul.h ../toplevel/dbj_defer.h ../toplevel/dbj_nanobench.h | $(BUILD_DIR)
 	$(CC) $(CFLAGS) -o $@ soa_aso_comparator.c
 
-$(BUILD_DIR)/dbj_soa_aso.exe: dbj_soa_aso.c dbj_strassen_matmul.h ../toplevel/dbj_defer.h ../toplevel/dbj_macros.h ../toplevel/dbj_clintro.h ../dbj_nanobench/dbj_nanobench.h | $(BUILD_DIR)
+$(BUILD_DIR)/dbj_soa_aso.exe: dbj_soa_aso.c dbj_strassen_matmul.h ../toplevel/dbj_defer.h ../toplevel/dbj_macros.h ../toplevel/dbj_clintro.h ../toplevel/dbj_nanobench.h | $(BUILD_DIR)
 	$(CC) $(CFLAGS) -o $@ dbj_soa_aso.c
 
 clean:

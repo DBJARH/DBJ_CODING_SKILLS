@@ -1,4 +1,17 @@
 /*
+   DEPRECATED -- kept for reference only, not used by any active code
+   in this repo. dbj_nanobench/dbj_nanobench.h is the active benchmark
+   harness (see DBJ_BENCH/DBJ_BENCH_N/DBJ_MEASURE/DBJ_MEASURE_N there).
+---------------------------------------------------------------------   
+   Blocker: UBENCH()/UBENCH_F() order of registration and executoin can 
+   not be controled.
+---------------------------------------------------------------------   
+
+   AMALGAMATION OF UBENCH AND UTEST
+
+   Ubench with Utest assertion macros
+
+---------------------------------------------------------------------   
    ubenchtest.h -- GCC-only benchmarking header built from sheredom's
    public-domain ubench.h, with the assertion macros from his utest.h
    folded in for use inside benchmarks:

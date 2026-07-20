@@ -1,5 +1,9 @@
 # Fixtures
 
+> **DEPRECATED** -- see the note at the top of `ubenchtest.h`. Kept
+> for reference only; `ubenchtest.h`/`.c` are not used by any active
+> code in this repo.
+
 Fixtures are used to define state that is initialized once and then
 reused throughout a benchmark. This separates the cost of
 initialization from the actual code you are measuring.

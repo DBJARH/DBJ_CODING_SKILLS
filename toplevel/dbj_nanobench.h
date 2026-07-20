@@ -1,6 +1,15 @@
 
 /* dbj_nanobench.h — single-header C23 microbenchmark harness
  * gcc/clang, POSIX clock_gettime. Zero deps.
+ *
+ * STB-style single header: declarations are always visible; the
+ * implementation is compiled only where DBJ_NANOBENCH_IMPLEMENTATION
+ * is defined before this include. Exactly one .c file per binary
+ * should do that — every caller in this repo builds one .c file per
+ * binary, so define it right before this include in that file:
+ *
+ *     #define DBJ_NANOBENCH_IMPLEMENTATION
+ *     #include "dbj_nanobench.h"
  */
 #pragma once
 
@@ -24,14 +33,7 @@
 #define DBJ_NB_DNO(x) asm volatile("" : : "r,m"(x) : "memory")
 #define DBJ_NB_CLOBBER() asm volatile("" : : : "memory")
 
-/* --- timing --- */
-static inline uint64_t DBJ_NB_now_ns(void)
-{
-    struct timespec t;
-    clock_gettime(CLOCK_MONOTONIC, &t);
-    return (uint64_t)t.tv_sec * 1000000000ull + (uint64_t)t.tv_nsec;
-}
-
+/* --- types --- */
 typedef struct
 {
     const char *name;
@@ -49,31 +51,10 @@ typedef struct
     const char *unit;
 } DBJ_NB_scaled;
 
-static inline DBJ_NB_scaled DBJ_NB_scale_ns(double ns)
-{
-    if (ns >= DBJ_NB_NS_PER_MS)
-        return (DBJ_NB_scaled){ .value = ns / DBJ_NB_NS_PER_MS, .unit = "ms" };
-    if (ns >= DBJ_NB_NS_PER_US)
-        return (DBJ_NB_scaled){ .value = ns / DBJ_NB_NS_PER_US, .unit = "us" };
-    return (DBJ_NB_scaled){ .value = ns, .unit = "ns" };
-}
-
-static inline void DBJ_NB_report(const DBJ_NB_result *r)
-{
-    /* one unit for the whole row, picked from max_ns, so avg/min/max are
-     * directly comparable instead of each floating to its own unit */
-    DBJ_NB_scaled unit_ = DBJ_NB_scale_ns((double)r->max_ns);
-    double divisor_ = unit_.value != 0.0 ? (double)r->max_ns / unit_.value : 1.0;
-    double avg_ = ((double)r->total_ns / (double)r->iters) / divisor_;
-    double min_ = (double)r->min_ns / divisor_;
-    double max_ = unit_.value;
-    printf("%-24s  avg=%7.2f %-2s  min=%7.2f %-2s  max=%7.2f %-2s  (n=%llu)\n",
-           r->name,
-           avg_, unit_.unit,
-           min_, unit_.unit,
-           max_, unit_.unit,
-           (unsigned long long)r->iters);
-}
+/* --- declarations --- */
+uint64_t DBJ_NB_now_ns(void);
+DBJ_NB_scaled DBJ_NB_scale_ns(double ns);
+void DBJ_NB_report(const DBJ_NB_result *r);
 
 /* --- public front macros ---
  * DBJ_BENCH(name, val_type, { ...code assigning DBJ_NB_val... });
@@ -156,50 +137,40 @@ static inline void DBJ_NB_report(const DBJ_NB_result *r)
         DBJ_NB_report(&DBJ_NB_r);                                                                                     \
     } while (0)
 
-#ifdef DBJ_NANOBENCH_SMOKE_TEST
+/* --- implementation --- */
+#ifdef DBJ_NANOBENCH_IMPLEMENTATION
 
-static bool DBJ_NB_is_prime(long n)
+uint64_t DBJ_NB_now_ns(void)
 {
-    if (n < 2)
-        return false;
-    for (long d = 2; d * d <= n; d++)
-        if (n % d == 0)
-            return false;
-    return true;
+    struct timespec t;
+    clock_gettime(CLOCK_MONOTONIC, &t);
+    return (uint64_t)t.tv_sec * 1000000000ull + (uint64_t)t.tv_nsec;
 }
 
-static long nth_prime(int n)
+DBJ_NB_scaled DBJ_NB_scale_ns(double ns)
 {
-    long count = 0, candidate = 1;
-    while (count < n)
-    {
-        candidate++;
-        if (DBJ_NB_is_prime(candidate))
-            count++;
-    }
-    return candidate;
+    if (ns >= DBJ_NB_NS_PER_MS)
+        return (DBJ_NB_scaled){ .value = ns / DBJ_NB_NS_PER_MS, .unit = "ms" };
+    if (ns >= DBJ_NB_NS_PER_US)
+        return (DBJ_NB_scaled){ .value = ns / DBJ_NB_NS_PER_US, .unit = "us" };
+    return (DBJ_NB_scaled){ .value = ns, .unit = "ns" };
 }
 
-#define DBJ_NB_SMOKE_PRIME_INDEX 1000
-
-static int dbj_nanobench_smoke_test(char *argv[static 1])
+void DBJ_NB_report(const DBJ_NB_result *r)
 {
-    (void)argv;
-    DBJ_BENCH("nth_prime(1000) defaults", long, {
-        DBJ_NB_val = nth_prime(DBJ_NB_SMOKE_PRIME_INDEX);
-    });
-
-    // _N form: name, val_type, warmup_iters, timed_iters, block
-    // DBJ_BENCH_N("nth_prime(1000)", long, DBJ_NB_DEFAULT_WARMUP_ITERS, DBJ_NB_DEFAULT_TIMED_ITERS, {
-    //     DBJ_NB_val = nth_prime(DBJ_NB_SMOKE_PRIME_INDEX);
-    // });
-
-    // void/side-effecting call — no DBJ_NB_val to assign
-    DBJ_MEASURE("nth_prime(1000) side-effect only", {
-        (void)nth_prime(DBJ_NB_SMOKE_PRIME_INDEX);
-    });
-
-    return 0;
+    /* one unit for the whole row, picked from max_ns, so avg/min/max are
+     * directly comparable instead of each floating to its own unit */
+    DBJ_NB_scaled unit_ = DBJ_NB_scale_ns((double)r->max_ns);
+    double divisor_ = unit_.value != 0.0 ? (double)r->max_ns / unit_.value : 1.0;
+    double avg_ = ((double)r->total_ns / (double)r->iters) / divisor_;
+    double min_ = (double)r->min_ns / divisor_;
+    double max_ = unit_.value;
+    printf("%-24s  avg=%7.2f %-2s  min=%7.2f %-2s  max=%7.2f %-2s  (n=%llu)\n",
+           r->name,
+           avg_, unit_.unit,
+           min_, unit_.unit,
+           max_, unit_.unit,
+           (unsigned long long)r->iters);
 }
 
-#endif // DBJ_NANOBENCH_SMOKE_TEST
+#endif // DBJ_NANOBENCH_IMPLEMENTATION

@@ -1,4 +1,5 @@
-#include "../dbj_nanobench/dbj_nanobench.h"
+#define DBJ_NANOBENCH_IMPLEMENTATION
+#include <dbj_nanobench.h>
 #include "../toplevel/dbj_macros.h"
 #include "../toplevel/dbj_clintro.h"
 

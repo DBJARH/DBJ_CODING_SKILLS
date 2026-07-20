@@ -1,4 +1,4 @@
-CFLAGS    := -std=c2x -Wall -Wswitch -Werror -I ../third_party/tau
+CFLAGS    := -std=c2x -Wall -Wswitch -Werror -I ../third_party/tau -I ../toplevel
 # DBJ_BUILDS, if set in the environment, is where every folder's build
 # output goes; falls back to ../builds (repo root) if unset.
 BUILD_DIR := $(if $(DBJ_BUILDS),$(DBJ_BUILDS),../builds)
@@ -21,7 +21,7 @@ all: $(TARGET)
 $(BUILD_DIR):
 	$(MKDIR)
 
-$(TARGET): dbj_str_test.c dbj_str.h | $(BUILD_DIR)
+$(TARGET): dbj_str_test.c ../toplevel/dbj_str.h | $(BUILD_DIR)
 	$(CC) $(CFLAGS) -o $(TARGET) dbj_str_test.c
 
 run: $(TARGET)

@@ -28,7 +28,8 @@
   both layouts: 4 benchmarks per size.
 */
 
-#include "../dbj_nanobench/dbj_nanobench.h"
+#define DBJ_NANOBENCH_IMPLEMENTATION
+#include <dbj_nanobench.h>
 
 #define DBJ_STRASSEN_MATMUL_IMPLEMENTATION
 #include "dbj_strassen_matmul.h"
