@@ -14,6 +14,8 @@ url: /ip-advisory/
 
 ---
 
+<h1 style="font-size:xxx-large"> <a href="https://method.dbj.org/method.html">DBJ Method</a> = <a href="https://method.dbj.org/cmm.html">DBJ CMM</a> + <a href="https://method.dbj.org/bpt.html">DBJ BPT</a> </h1>
+
 # Advisory on the DBJ.METHOD IP rights
 
 ### Author: Dusan B. Jovanovic (dbj@dbj.org)
