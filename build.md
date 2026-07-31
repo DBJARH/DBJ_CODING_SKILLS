@@ -33,6 +33,7 @@ export DBJ_BUILDS=/wherever/you/want
 | Folder | Output |
 |---|---|
 | `tribute_to_tony/` | `dbj_email_crud` |
+| `ken_thompson_grep/` | `dbj_grep` |
 | `dbj_str_test/` | `dbj_str_test` |
 | `toplevel/` | `toplevel_smoke_test` |
 | `strassen_mat_mul/` | `bench`, `strassen_bench_comparator`, `soa_aso_comparator`, `dbj_soa_aso` |

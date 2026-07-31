@@ -27,6 +27,27 @@ unions / tagged records versus OOP-style dispatch.
     (`v0_initial_claude_code_vibes/`, `v1_substandard_claude_design/`)
     each paired with a review/discussion file, kept for comparison.
 
+- [ken_thompson_grep/](ken_thompson_grep/) — the same tagged-union
+  exercise applied to code that predates the idea: a C23 port of the
+  regular expression engine from Ken Thompson's Version 6 Unix `grep`
+  (c. 1975). The original encoded its opcodes as untyped bytes packed
+  into one flat `char expbuf[512]`, where each opcode had a different
+  operand width and nothing in the type system recorded that; the port
+  makes the instruction stream an explicit tagged union over an
+  exhaustive `switch`.
+  - [ken_thompson_grep/dbj_grep.h](ken_thompson_grep/dbj_grep.h) —
+    the engine: `DbjGrepInstruction`, `DbjGrepPattern`, `DbjGrepResult`.
+  - [ken_thompson_grep/dbj_grep_test.c](ken_thompson_grep/dbj_grep_test.c) — its
+    driver, with a built-in self test and a working grep mode.
+  - [ken_thompson_grep/readme.md](ken_thompson_grep/readme.md) — folder
+    readme and design document in one, diagrams included.
+  - [ken_thompson_grep/ken_thompson_grep.md](ken_thompson_grep/ken_thompson_grep.md) —
+    the legacy listing this port started from. **Not** authentic V6
+    source despite claiming to be; an LLM reconstruction with the regex
+    compiler missing entirely. Kept unfixed as the baseline, same
+    reasoning as `analyzed_vibecode/` above. `readme.md` lists what is
+    wrong with it.
+
 ## Building
 
 See [build.md](build.md).
