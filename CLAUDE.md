@@ -3,9 +3,16 @@
 Guidance for Claude Code when working in this repository.
 
 
-> **Caveat Emptor**: We are enjoying the metapresence of [DBJ Taxonomies](https://method.dbj.org/taxonomy_core.html). Thus we know where are we in the information space with these endeavor. Top category: **Implementation**. Capability: **Development**. In other word: We know what is this all about. And we can explain it to the reader.
->
+## Conversation protocol
 
+- be very brief, 
+  - if you think you know longer answer is required make it longer
+- use simple terminology
+  - move explaining of complex and necessary stuff into footnote section of the document
+    - call it "Vocabulary"
+- do not over explain
+  - use the "Vocabulary' to point to eternal sources
+- do not assume anything, if in doubt ask
 
 ## What this repo is
 
@@ -48,6 +55,15 @@ line-by-line mapping of the diagram to the code or back. A diagram that
 tries to mirror the code exactly has failed at being a diagram.
 
 ## DBJ Taxonomy
+
+> We are enjoying the omni-presence of [DBJ Taxonomies](https://method.dbj.org/taxonomy_core.html). Thus we know where are we in the information space. 
+> 
+> Taxonomy might be explained as the terminology of the Information Space Positioning System
+> 
+> Example. 
+> `Category: **Implementation**` 
+> `Capability: **Development**` 
+> Now we all know what is the positioned content all about. And author doe not need to explain it to the reader.
 
 Design docs in this repo place themselves in the DBJ Taxonomy — see the
 core definition: https://method.dbj.org/taxonomy_core.html. A design
