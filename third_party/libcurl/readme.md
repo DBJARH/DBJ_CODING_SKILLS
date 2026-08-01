@@ -10,6 +10,8 @@ use the distro's own libcurl via `pkg-config --static libcurl`
 vendoring there. See `dbjobserve/Makefile` for the `$(OS)` split and
 `dbjobserve/general_design.md` for why only one side is vendored.
 
+## Origin
+
 - Version: curl 8.21.0_6, `win64-mingw` build
 - Source: https://curl.se/windows/ (the curl-for-win project)
 - Archive: `curl-8.21.0_6-win64-mingw.zip`
