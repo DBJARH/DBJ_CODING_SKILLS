@@ -15,12 +15,18 @@ Capability:     Development
 - [Request flow](#request-flow)
 - [Resource release](#resource-release)
 - [Portability](#portability)
+- [API status -- unresolved](#api-status----unresolved)
 
 # What this is
 
 A single-file CLI that queries the JobServe job-search API over HTTPS
 and prints the response. It exists to exercise libcurl inside this
 repo's conventions, not to be a JobServe client library.
+
+> **The endpoint and the auth mechanism currently in the code are
+> known to be wrong**, independently of the missing token -- see
+> [API status](#api-status----unresolved) before touching either.
+> This is why the folder is committed as "WIP DO NOT USE".
 
 The API token is a secret. It is never in the source, never on the
 command line (where it would land in shell history and in `ps`
@@ -146,3 +152,63 @@ Only the Windows side is vendored, because a MinGW `.a` cannot link on
 Linux -- a vendored Linux prebuilt would be a second, separate binary
 blob to keep provenance for. The Makefile branches on `$(OS)`; the C
 source has no `#ifdef _WIN32` in it at all.
+
+# API status -- unresolved
+
+Findings from probing the live service on 2026-08-01. Recorded so the
+dead ends are not rediscovered.
+
+## The endpoint in the code is wrong
+
+`DBJOBSERVE_API_BASE` is currently `/api/jobsearch` with the token as
+an `apikey=` query parameter. Both were guesses inherited from the
+first draft, and both are wrong:
+
+| Request | Response | Reading |
+|---|---|---|
+| `/api/jobsearch` | `404` | path does not exist |
+| `/api/Jobs/Search` | `404` | path does not exist |
+| `/Jobs/Search` | `401` | **exists, wants credentials** |
+| `/Jobs/Search?apikey=<any>` | `401` | query parameter is not the mechanism |
+
+The 404 body is an ASP.NET Web API "no route matched" error -- proof
+the host is up and running a Web API app that has no such route. A
+wrong *token* would give 401/403, never 404. So the 404 was never
+evidence about the token.
+
+`/Jobs/Search` returns `{"Message":"Authorization has been denied for
+this request."}` with **no `WWW-Authenticate` header**, so the token
+travels in a request header, not the query string. Four plausible
+header names (`X-ApiToken`, `ApiToken`, `X-API-Key`,
+`Authorization: Bearer`) all return an identical 401 -- indistinguishable
+from a valid header name carrying a bad token. The name cannot be
+settled without a real token; with one, a single request settles it.
+
+## Getting a token
+
+Not self-service, and **not connected to a JobServe user account** --
+developer access is a separate registration, so being a long-standing
+site user does not produce a token.
+
+The documented registration page is
+`https://services.jobserve.com/Developers/Register`. It currently
+returns **HTTP 500** (ASP.NET error page), as does the
+`services.jobserve.com` root, while `www.jobserve.com` returns 200 --
+the main site is healthy, the developer mini-site is not. The
+historical process was manual anyway: request access, wait a day or
+two for a human to issue the token.
+
+Remaining route: contact JobServe through the main site and ask for
+Web API developer access.
+
+## Risk to the whole approach
+
+All public documentation for this API dates from 2012, and the
+developer site is throwing 500s. The API may be unmaintained or
+withdrawn. If it turns out to be dead, the fallback is scraping
+`www.jobserve.com` or a third-party service -- a different design with
+different legal and ethical footing, to be decided deliberately rather
+than drifted into.
+
+Nothing in the code should be changed on guesswork until a token is in
+hand.

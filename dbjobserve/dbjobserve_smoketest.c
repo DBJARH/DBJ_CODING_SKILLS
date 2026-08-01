@@ -40,6 +40,11 @@
 #define DBJOBSERVE_LOCATION_SIZE 256
 #define DBJOBSERVE_URL_SIZE 1024
 
+/* KNOWN WRONG -- do not build on this. /api/jobsearch returns 404 (no
+   such route); the live endpoint is /Jobs/Search, which returns 401,
+   and the token goes in a header, not an apikey= query parameter. The
+   header's name is still unknown and cannot be determined without a
+   real token. See general_design.md, "API status -- unresolved". */
 #define DBJOBSERVE_API_BASE "https://services.jobserve.com/api/jobsearch"
 #define DBJOBSERVE_TIMEOUT_SECONDS 15L
 
