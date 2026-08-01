@@ -14,3 +14,8 @@
 #define SIMPLE_LOG(fmt, ...) \
     fprintf(stdout, "[%6d] " fmt "\n", __LINE__ __VA_OPT__(, ) __VA_ARGS__)
 #endif
+
+#ifndef SIMPLE_ERR_LOG
+#define SIMPLE_ERR_LOG(fmt, ...) \
+    fprintf(stderr, "ERROR :: [%6d] " fmt "\n", __LINE__ __VA_OPT__(, ) __VA_ARGS__)
+#endif
