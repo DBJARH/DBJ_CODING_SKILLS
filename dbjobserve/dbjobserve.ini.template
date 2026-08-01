@@ -1,0 +1,17 @@
+; dbjobserve configuration.
+;
+; Copy this file next to the built exe (../builds/) and rename it to
+; dbjobserve.ini, then fill in your JobServe API token.
+;
+; The real dbjobserve.ini is NOT checked in -- .gitignore excludes
+; *.ini repo-wide. This .template is the checked-in copy, and it must
+; never contain a real token.
+
+[jobserve]
+
+; Required. Without it the program exits before making any request.
+token    = PUT-YOUR-JOBSERVE-API-TOKEN-HERE
+
+; Optional -- these are also the built-in defaults.
+keywords = c programmer
+location = London
