@@ -75,3 +75,20 @@ here instead.
   are fine). Use short words instead (`sum`, `row`, `grid`), not long
   phrases — the goal is readability during maintenance, not brevity for
   its own sake.
+
+
+## Document versioning
+
+- Every markdown file **SHOULD** (not must) carry a decimal `version:` key in its front matter:
+
+```yaml
+---
+version: 0.1
+---
+```
+
+- `0.1` .. `1.0` — pre-releases leading up to release 1
+- `1.1` .. `2.0` — releases 1.1 through 2.0
+- and so on by the same pattern
+
+SHOULD, not MUST: skip it where this repo forbids front matter, and where front matter already exists just add the `version` key without disturbing the rest.
