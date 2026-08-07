@@ -41,6 +41,10 @@ by changing the design text and marking the note **[settled]**.
 
 ### DBJ to both ASH and DRAFT
 
+**game name** is DBJ_THE_GAME
+
+**LICENSE.upstream** - we do not need it on dbj_the_game
+
 **raylib** - this is windows/linux repo on both we will do static linking. when and which we will decide in a Makefile. Install raylib win and linux libs under `\third_party` in separate folder of course
 
 **nanobench row** - I could not care less. So ASH save and commit
@@ -962,12 +966,47 @@ hard blocker before any of the above compiles.
    player, one enemy kind (`WARRIOR`), no boss. Proves the tag-and-switch
    design end to end in roughly 600 lines. Dracula, the archer, the second
    stage and the scoreboard follow once the shape is confirmed.
-2. **Assets** — copy the needed PNG/TTF/TXT out of `lineage/` into
-   `dbj_the_game/assets/` and commit them, with `LICENSE.upstream` alongside
-   so the MIT notice travels. Alternative: regenerate placeholder art and stay
-   asset-free.
-3. **Name** — folder is `dbj_the_game`; the window title and any docs identity
-   are still open.
+2. **Assets — ruled by DBJ: no `LICENSE.upstream` in `dbj_the_game`.**
+
+   That settles the licence file. It leaves one question underneath it,
+   because the ruling reads two ways and only one of them is free:
+
+   - **No upstream files here at all** — placeholder art, `.txt` maps
+     written fresh. Nothing of Pedro's is redistributed, so no notice is
+     owed and none is needed. Clean.
+   - **Upstream art copied in, notice dropped.** MIT §"The above copyright
+     notice ... shall be included in all copies or substantial portions of
+     the Software" — copying `dracula.png` and `castle.txt` into a
+     committed folder is a copy, and the notice travels with it.
+
+   The C23 *code* owes nothing: it is a rewrite, not a copy. Only the
+   binary assets and map files carry the obligation.
+
+   > **DRAFT:** DBJ, I am reading your ruling as the **first** one — no
+   > upstream assets in `dbj_the_game`, therefore no notice needed. That
+   > is the reading where "we do not need it" is simply true, and it
+   > matches the fact that `lineage/` is already git-ignored and never
+   > shipped.
+   >
+   > Flagging it rather than assuming silently, because if you meant the
+   > second — copy the art, drop the file — then the repo redistributes
+   > MIT-licensed work without its notice, which the readme you wrote for
+   > `lineage/` is careful about ("Ship both in any copy or
+   > redistribution"). One line in `dbj_the_game/readme.md` crediting
+   > Pedro would discharge it; it does not need a separate file.
+   >
+   > Working assumption until you say otherwise: **placeholder art,
+   > freshly written maps.** ASH argued the debugging cost of placeholders
+   > is real, and it is — but it is a cost, not a blocker, and it is the
+   > only reading that needs no notice at all.
+3. **Name — ruled by DBJ: `DBJ_THE_GAME`.** Window title, banner, and docs
+   identity all take it. The executable stays lowercase `dbj_the_game`
+   (`.exe` on Windows) to match the folder and every other build target in
+   this repo; the display name is the uppercase form.
+
+   No trace of the ancestor's names — "the-lost-kiwi" and "tec dracula"
+   both belong to upstream and appear only in `lineage/`, which is
+   git-ignored.
 4. **Arena sizes — settled by measurement, one number still a guess.** Both
    map files are 12 lines x 100 columns at 40 px per cell:
 
@@ -979,8 +1018,14 @@ hard blocker before any of the above compiles.
 
    Obstacles **320** = 252 platforms + `Spawner::maxObstacles` (10), with
    headroom. Enemies **16** from `Spawner::maxEnemies` (15), a hard cap.
-   Projectiles **64** is *not* derived — nothing in the ancestor bounds
-   projectiles in flight. It is a guess and is labelled as one.
+   Projectiles **64** is derived indirectly, since nothing in the ancestor
+   bounds projectiles in flight directly: `Archer.cpp` fires on
+   `attackTimer >= 1`, one arrow per archer per second; `Projectile.cpp:42`
+   despawns against the view, so flight time is under two seconds; enemy kind
+   is `rand() % 2`, so about 8 of the 15 concurrent enemies are archers.
+   That is ~16 in flight, ~20 with player knives — **64 is roughly 3x a
+   derived worst case**, not a round number. Stated so anyone shrinking it
+   knows what they are cutting into.
 
    A full arena must fail loudly: `world_spawn` returns null, and debug
    builds assert. A silently dropped enemy is exactly the bug class this
@@ -1006,6 +1051,38 @@ hard blocker before any of the above compiles.
 > build looks broken, and "is that a bug or is that the placeholder" is a
 > tax paid on every frame of debugging. `LICENSE.upstream` alongside is
 > cheap.
+>
+> **[withdrawn — DBJ ruled]** DBJ has ruled no `LICENSE.upstream`, which
+> removes the cheap half of my proposal and leaves only the cost. Dropped.
+> DRAFT's reading is correct and I want to put a harder citation behind
+> it than the readme: `lineage/tec_drakula/LICENSE` says it outright —
+> *"The game itself — src/, include/, assets/, saves/, uml/ — is upstream
+> work ... Its notice is kept verbatim in LICENSE.upstream and **must
+> travel with any copy of those files**."* DBJ wrote that. So "no
+> `LICENSE.upstream`" and "copy the art" cannot both hold, and placeholder
+> art is the only reading that is free.
+>
+> Two things that make the placeholder cost smaller than I claimed, now
+> that I have looked at what is actually in `lineage/assets/`:
+>
+> 1. **Fonts need no placeholder at all.** The ancestor ships
+>    `general-font.ttf` and `seagram-tfb.ttf`, and bundled fonts often
+>    carry their own licence independent of the project's MIT — a second
+>    obligation nobody has checked. raylib's `DrawText` uses a built-in
+>    default font with no file, so milestone 1 can simply not have a font
+>    asset. One whole class of the problem disappears.
+> 2. **The maps are the part worth writing fresh, and they are trivial.**
+>    `castle.txt` is 12 x 100 characters of `1`, `0`, `&`. A hand-written
+>    replacement is minutes of work, is not a derivative of anything, and
+>    lets milestone 1 use a *smaller* map deliberately — which makes the
+>    arena bounds easier to exercise, not harder.
+>
+> That leaves sprites, where my "is it a bug or the placeholder" objection
+> does stand. Flat coloured rectangles per `entity_kind` answer it: a
+> rectangle is unambiguously a placeholder, so nothing is ever mistaken
+> for a rendering bug, and the tag-to-colour mapping is itself another
+> exhaustive `switch` that `-Wswitch` guards. Sprites arrive with
+> milestone 2.
 >
 > On (3) no opinion — that is the human's call, not an engineering one.
 
