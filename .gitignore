@@ -26,3 +26,7 @@ Thumbs.db
 # Per-machine editor config (compilerPath/intelliSenseMode differ
 # between the Windows and Linux dev machines) — never checked in
 .vscode/
+
+# C++ ancestor of dbj_the_game, kept locally for reference only.
+# Upstream MIT (© Pedro Foresti Leão), has its own .git, never checked in here.
+/dbj_the_game/lineage/
