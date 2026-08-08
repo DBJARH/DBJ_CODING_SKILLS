@@ -1,0 +1,17 @@
+raylib 5.5 -- prebuilt static libraries, vendored
+
+win64/libraylib.a
+  archive  raylib-5.5_win64_mingw-w64.zip
+  url      https://github.com/raysan5/raylib/releases/download/5.5/raylib-5.5_win64_mingw-w64.zip
+  sha256   fe8feda1b92fc02826e2d19c631d648fd0563b93b144893fe18140e9fe4fb6fd
+
+linux64/libraylib.a
+  archive  raylib-5.5_linux_amd64.tar.gz
+  url      https://github.com/raysan5/raylib/releases/download/5.5/raylib-5.5_linux_amd64.tar.gz
+  sha256   3d95ef03d5b38dfa55c0a16ca122d382134b078f0e5b270b52fe7eae0549c000
+
+include/  raylib.h, raymath.h, rlgl.h -- from the win64 archive.
+          Byte-identical to the linux64 headers apart from line endings
+          (win64 ships CRLF, linux64 LF). One set serves both.
+
+LICENSE   zlib/libpng, (c) 2013-2024 Ramon Santamaria (@raysan5)
