@@ -13,10 +13,9 @@ What the POCs (aka "small examples") elsewhere in this repo cannot show is wheth
 [toplevel/](../toplevel/) and [third_party/](../third_party/) survive
 contact with a real program.
 
-## What is tried 
+## What is used 
 
-These artefacts are to be used. Where they land in the code is decided
-while writing it.
+These artefacts are to be used. Where they land in the code is decided 32while writing it.
 
 <br id="artefacts_used">
 
