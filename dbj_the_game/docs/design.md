@@ -1,5 +1,20 @@
 ---
-version: 0.4
+version: 0.6
+chamber: design
+spec: dbj_chamber.md
+sibling: implementation.md
+actors:
+  DBJ:   { role: supervisor, kind: human,  writes: rulings }
+  ASH:   { role: reviewer,   kind: agent,  writes: objections }
+  DRAFT: { role: author,     kind: agent,  writes: answers }
+signal:
+  ASH: false
+  DRAFT: false
+protocol:
+  - One collapsed <details> block per actor, id = actor name.
+  - One line per item, opening with [settled] | [fix] | [open].
+  - Nobody edits another actor's block.
+  - DBJ rules on [open] items when every signal is true, then resets them.
 ---
 
 # dbj_the_game — design chamber
@@ -18,31 +33,15 @@ with the author's permission. It is git-ignored: reference only, never built.
 
 ## Discussion
 
-This document is under review by more than one agent. Notes are inline,
-where they apply, so an objection sits next to the thing it objects to.
-
-**Convention.** A note is a blockquote opening with the author's code
-name and a colon. Reply by adding your own note directly beneath, same
-form. Nobody edits anybody else's note — you answer it, or you resolve it
-by changing the design text and marking the note **[settled]**.
-
-| Code name | Who |
-|---|---|
-| **DBJ** | Human, supervisor |
-| **ASH** | Claude Code, terminal session. Wrote the review notes. |
-| **DRAFT** | Author of this design. Answers ASH's notes. |
+Actors, rules and signal state are in this file's front matter; the protocol
+itself is specified in [dbj_chamber.md](dbj_chamber.md). Same room as
+[implementation.md](implementation.md), same protocol — only the subject
+differs.
 
 ---
 
 <details id="DBJ_to_ASH_and_DRAFT" markdown="1">
-<summary>All in this group consider **[settled]** by **DBJ**</summary>
-
-> **DBJ:**
-> When both DRAFT and ASH agree I jump in and review all the **[open]** issues and make them [settled]. If need be.
-
-> ASH and DRAFT details are to start with SIGNAL = [ TRUE | FALSE]
-> After DBJ is done he will reset the signal inside details, to FALSE
-
+<summary>All in this group consider <b>[settled]</b> by <b>DBJ</b></summary>
 
 **raylib** NOT is not to follow the `libcurl` but genuinely vendor both halves through $(OS) in Make
 
@@ -62,8 +61,6 @@ by changing the design text and marking the note **[settled]**.
 
 <details id="DRAFT_notes" markdown="1">
 <summary><b>DRAFT</b> — all notes, all <b>[settled]</b></summary>
-
-**SIGNAL** — DBJ should intervene — FALSE.
 
 **[settled] timers[3]** — renamed to `fire_cooldown`, `hurt_flash`, `expiry`;
 anonymous slots keyed by tag were a union without type checking.
@@ -117,8 +114,6 @@ placeholder art and freshly written maps.
 
 <details id="ASH_notes" markdown="1">
 <summary><b>ASH</b> — all notes, all <b>[settled]</b></summary>
-
-**SIGNAL** — DBJ should intervene — FALSE.
 
 **[settled] timers[3]** — three anonymous slots keyed by the tag are a union
 with the type checking removed, one paragraph after the design argues against
@@ -196,11 +191,14 @@ kind rather than degree: the ancestor's equivalent mistake is silent.
   - [Module layout](#module-layout)
   - [Frame flow](#frame-flow)
   - [Memory](#memory)
-  - [Where the toolkit lands](#where-the-toolkit-lands)
   - [What is deliberately dropped](#what-is-deliberately-dropped)
-  - [Build](#build)
   - [Open decisions](#open-decisions)
   - [Vocabulary](#vocabulary)
+
+The *how* lives next door in [implementation.md](implementation.md) —
+toolchain, vendored raylib, link lines, derived constants, and which
+`toplevel/` header attaches where. Everything there can change without
+anything here changing.
 
 ## What changes and why
 
@@ -447,12 +445,10 @@ deaths are resolved, so refilling before it would let an enemy killed this
 frame reappear in the same frame — wrong, and invisible, because the arena
 count would look correct either way.
 
-The policy is the ancestor's: `Stage::update` calls `spawnEnemy()` every
-frame and `decrementEnemiesCount()` on death, so `maxEnemies = 15` caps
-*concurrently alive* enemies, not the total. The stage refills forever. The
-constant lives in `world.c` beside `world_respawn`, with the arena size
-derived from it (`enemies[16]` = cap 15 + 1) and a comment tying the two
-together — editing one without the other is the bug worth preventing.
+The policy is the ancestor's: the enemy cap is a limit on how many are
+*alive at once*, not a level budget, so the stage refills forever. The
+constant and its arithmetic live in
+[implementation.md](implementation.md#derived-constants).
 
 ## Memory
 
@@ -490,29 +486,6 @@ nothing while the real bound sits out of scope one parameter to the right.
 Syntax that type-checks but bounds nothing is worse than a bare pointer: a
 reviewer skims it and moves on.
 
-## Where the toolkit lands
-
-The readme commits to nine artefacts. This is where each one attaches, and
-what it would take for the attachment to count as *proved* rather than
-merely *used*.
-
-| Artefact | Attaches at | Proved when |
-|---|---|---|
-| `dbj_defer.h` | `FILE*` in `map.c`; texture handles in `draw.c` | the only two places the simulation owns a resource — if defer is awkward here, it is awkward everywhere |
-| `dbj_result.h` | `map_load`, asset loading | a missing map file reports a reason and unwinds, instead of `exit(1)` |
-| `dbj_simple_log.h` | startup, asset resolution, spawn refusals | a full arena is visible in the log, not silent |
-| `dbj_clintro.h` | banner in `main` | trivial, one call |
-| `dbj_macros.h` | `DBJ_LOOP_AS` over arenas and the map grid | reads better than the plain `for` it replaces, at 4 nested loops in `physics.c` |
-| `dbj_nanobench.h` | `entity_step` over a synthetic arena | dispatch cost measured same-compiler, same-flags — **not** against the C++ ancestor |
-| `dbj_required_compile_time.h` | GCC-15 gate | same as every other folder |
-| `tau` | simulation unit tests | a recorded input array replays a game with no window — the reason `input.c` is split out |
-| `dbc_assert` | spawn / despawn preconditions | slot index in range, tag matches arena |
-
-Two of these are load-bearing for the design rather than incidental.
-`tau` requires the simulation to be reachable without raylib, which is why
-input is its own module. `dbc_assert` on spawn is what turns a full arena
-from a silent drop into a caught bug.
-
 ## What is deliberately dropped
 
 Called out so nothing looks accidentally missing.
@@ -528,58 +501,6 @@ Called out so nothing looks accidentally missing.
   world is a flat array, so persisting it is `fwrite`.
 - **The `Ente` base class.** It held one pointer and existed to give `Stage`
   and `Entity` a common ancestor for no reason either of them used. Gone.
-
-## Build
-
-One `Makefile`, GNU make, GCC 15+. This repo builds on **both Windows and
-Linux**, so the Makefile picks the platform; nothing else in the tree knows
-which one it is.
-
-| | |
-|---|---|
-| Compiler | GCC 15.2.0, `-std=c23` — `G:\mingw64\bin\gcc.exe` on Windows |
-| Library | raylib 5.x, **statically linked**, vendored under `third_party/` |
-| Warnings | `-Wall -Wextra -Wswitch -Werror` — the exhaustive-switch guarantee depends on these |
-
-**raylib is vendored, not installed.** It lives in the repo alongside the
-other third-party code, one folder per platform, so a clone builds without a
-machine-local prerequisite:
-
-```
-third_party/raylib/
-  readme.md            origin, version, license
-  BUILD-MANIFEST.txt   SHA256 of each archive
-  include/raylib.h
-  win64/libraylib.a
-  linux64/libraylib.a
-```
-
-`readme.md` and `BUILD-MANIFEST.txt` are not optional — `third_party/libcurl/`
-carries both, and a vendored binary without an origin URL, a version and a
-checksum is a thing nobody can audit or re-fetch. This one commits two
-archives, so it owes two entries.
-
-Static only. There is no runtime DLL or `.so` to ship, nothing to put on
-`PATH`, and no version skew between the header and whatever the system had
-lying around — which is exactly the failure the ancestor's `make.cmd`
-prepending `G:\SFML` was working around.
-
-Static raylib does not link on its own; it needs the platform's graphics and
-timing libraries after it, and the order matters to `ld`:
-
-| | |
-|---|---|
-| Windows | `third_party/raylib/win64/libraylib.a -lopengl32 -lgdi32 -lwinmm` |
-| Linux | `third_party/raylib/linux64/libraylib.a -lGL -lm -lpthread -ldl -lrt -lX11` |
-
-**Name the archive by path, never `-lraylib`.** If an import library ever
-lands beside the static one, `ld` silently prefers it: the build succeeds and
-the binary dies at startup on a missing DLL. `dbjobserve/Makefile:19` carries
-that comment for `libcurl` for exactly this reason.
-
-Which toolchain and which of the two library folders is a decision the
-Makefile makes at build time. **Nothing is installed yet** — this is the one
-hard blocker before any of the above compiles.
 
 ## Open decisions
 
@@ -615,29 +536,11 @@ hard blocker before any of the above compiles.
    No trace of the ancestor's names — "the-lost-kiwi" and "tec dracula"
    both belong to upstream and appear only in `lineage/`, which is
    git-ignored.
-4. **Arena sizes — settled by measurement.** Both
-   map files are 12 lines x 100 columns at 40 px per cell:
-
-   | | `castle.txt` | `cemiterio.txt` |
-   |---|---|---|
-   | platforms (`1` / `0`) | 242 | 252 |
-   | spawn points (`&`) | 65 | 60 |
-   | spikes / fire in file (`2` / `3`) | 0 | 0 |
-
-   Obstacles **320** = 252 platforms + `Spawner::maxObstacles` (10), with
-   headroom. Enemies **16** from `Spawner::maxEnemies` (15), a hard cap.
-   Projectiles **64** is derived indirectly, since nothing in the ancestor
-   bounds projectiles in flight directly: `Archer.cpp` fires on
-   `attackTimer >= 1`, one arrow per archer per second; `Projectile.cpp:42`
-   despawns against the view, so flight time is under two seconds; enemy kind
-   is `rand() % 2`, so about 8 of the 15 concurrent enemies are archers.
-   That is ~16 in flight, ~20 with player knives — **64 is roughly 3x a
-   derived worst case**, not a round number. Stated so anyone shrinking it
-   knows what they are cutting into.
-
-   A full arena must fail loudly: `world_spawn` returns null, and debug
-   builds assert. A silently dropped enemy is exactly the bug class this
-   design claims to remove.
+4. **Arena sizes — settled by measurement, not by taste.** Every arena bound
+   is derived from the ancestor's map files and spawn caps, and a full arena
+   refuses loudly rather than dropping an entity in silence. The measurements
+   and the arithmetic are in
+   [implementation.md](implementation.md#derived-constants).
 5. **Milestone 1 has no end state — stated, not discovered.** One enemy
    kind, no boss, and a spawner that refills forever means the game does not
    end: the player can die, but there is nothing to win. That is acceptable
