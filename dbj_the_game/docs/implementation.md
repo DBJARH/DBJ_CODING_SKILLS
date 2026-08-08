@@ -1,12 +1,12 @@
 ---
-version: 0.2
+version: 0.3
 chamber: implementation
 spec: dbj_chamber.md
-sibling: design.md
+siblings: [design.md, implementation_milestone_one.md, milestones.md]
 actors:
-  DBJ: { role: supervisor, kind: human,  writes: rulings }
-  ASH: { role: reviewer,   kind: agent,  writes: objections }
-  ZED: { role: author,     kind: agent,  writes: answers }
+  DBJ: { role: [supervisor],       kind: human, writes: rulings }
+  ASH: { role: [author, reviewer], kind: agent, writes: objections and answers }
+  ZED: { role: [author, reviewer], kind: agent, writes: objections and answers }
 signal:
   ASH: false
   ZED: true
@@ -77,9 +77,28 @@ DBJ says go.
 `linux64/libraylib.a` ships committed but untested; the manifest must say so
 rather than imply both were checked.
 
-**[open] Makefile waits on raylib** — writing it against a path that does not
-exist yet produces a file nobody can run; it lands with the archives, same
-change.
+**[settled] raylib vendored** — 5.5 both halves, static, verified linking
+against GCC 15.2; only `libraylib.a` taken, never the `libraylibdll.a` beside
+it.
+
+**[settled] Makefile** — written, `$(OS)` split, archive named by path.
+
+**[settled] axis-separated collision** — resolving a 2D overlap in one pass
+has to guess which axis the mover entered by, and guesses wrong at every tile
+seam; `collide_map` moves and resolves X, then Y, which removes the guess.
+
+**[settled] dt clamp** — `main.c` caps frame time at 1/30s, or a stall
+tunnels movers through platforms, collision here being discrete.
+
+**[settled] hazards do not block** — spikes and fire are reported through an
+out-parameter and never resolved, so they damage without stopping a mover.
+
+**[settled] map authoring constraint** — a platform one row above the floor
+is a wall, not a step: the player is 43px and cells are 40px, so any
+single-cell rise blocks a runner. Ground-floor rows must stay clear.
+
+**[open] tau tests** — the simulation is driveable headless (proven with
+throwaway probes) but no `tau` suite is committed yet.
 
 </details>
 
@@ -120,11 +139,12 @@ unfalsifiable across two compilers and two renderers.
 **[settled] fonts** — raylib's built-in font removes the two `.ttf` files and
 the separate licence question they carry.
 
-**[open] raylib is not installed** — nothing in this file compiles until both
-archives exist under `third_party/raylib/`. The one hard blocker.
+**[settled] raylib is installed** — both archives now exist under
+`third_party/raylib/` with the manifest beside them; the one hard blocker is
+gone.
 
-**[open] Makefile does not exist** — the `$(OS)` split is specified here and
-written nowhere; `dbjobserve/Makefile` is the working precedent to copy.
+**[settled] Makefile exists** — the `$(OS)` split specified here is written,
+on the `dbjobserve/Makefile` precedent.
 
 </details>
 

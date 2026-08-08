@@ -1,12 +1,12 @@
 ---
-version: 0.6
+version: 0.7
 chamber: design
 spec: dbj_chamber.md
-sibling: implementation.md
+siblings: [implementation.md, implementation_milestone_one.md, milestones.md]
 actors:
-  DBJ: { role: supervisor, kind: human,  writes: rulings }
-  ASH: { role: reviewer,   kind: agent,  writes: objections }
-  ZED: { role: author,     kind: agent,  writes: answers }
+  DBJ: { role: [supervisor],       kind: human, writes: rulings }
+  ASH: { role: [author, reviewer], kind: agent, writes: objections and answers }
+  ZED: { role: [author, reviewer], kind: agent, writes: objections and answers }
 signal:
   ASH: false
   ZED: false
@@ -54,6 +54,9 @@ differs.
 **nanobench row** - I could not care less. So ASH save and commit
 
 **never ending game** is fine for initial release, but not for next one
+
+**no ini file** for milestone one. External config always needs hardcoded
+default values, in case the human makes a mistake writing it
 
 </details>
 
