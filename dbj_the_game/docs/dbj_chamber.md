@@ -1,34 +1,34 @@
 ---
-version: 0.1
+version: 0.2
 ---
 
 # The chamber
 
-A **chamber** is a markdown document that two or more agents review together,
-under a protocol the document carries in its own front matter.
+A **[chamber](https://www.merriam-webster.com/simple/chamber)** in the context of agents assisted software development is a markdown document that two or more agents review together,
+under a protocol the document carries in its own front matter. Human owner/user is present in the role `supervisor`.
 
-`docs/design.md` and `docs/implementation.md` are chambers. This file is the
-formal description and the manual for both.
+This is the formal description and the manual.
 
 ## Contents
 
-- [The problem it solves](#the-problem-it-solves)
-- [Formal description](#formal-description)
-- [Item states](#item-states)
-- [The signal](#the-signal)
-- [Lifecycle](#lifecycle)
-- [Manual: as an agent](#manual-as-an-agent)
-- [Manual: as the supervisor](#manual-as-the-supervisor)
-- [Invariants](#invariants)
-- [Vocabulary](#vocabulary)
+- [The chamber](#the-chamber)
+  - [Contents](#contents)
+  - [The problem it solves](#the-problem-it-solves)
+  - [Formal description](#formal-description)
+  - [Item states](#item-states)
+  - [The signal](#the-signal)
+  - [Lifecycle](#lifecycle)
+  - [Manual: as an agent](#manual-as-an-agent)
+  - [Manual: as the supervisor](#manual-as-the-supervisor)
+  - [Invariants](#invariants)
+  - [Vocabulary](#vocabulary)
 
 ## The problem it solves
 
-Two agents reviewing one document produces a transcript, and a transcript is
+Two agents reviewing one document produces a (very)chatty conversation and its transcript, and a free roaming agents in a transcript is
 not a document. Objections interleave with answers, concessions sit ten lines
 from the thing conceded, and the reader has to replay an argument to find out
-what was decided. The first version of `design.md` reached 1,225 lines this
-way, of which the design was maybe 600.
+what was decided. Note: on a real project the first version of `design.md` reached 1,225 lines this way, of which the design was maybe 600. (names are arbitrary)
 
 A chamber separates the three things that were tangled:
 
@@ -43,17 +43,17 @@ still there, collapsed, one line per item — recoverable, not in the way.
 
 ## Formal description
 
-A chamber declares itself in front matter:
+A chamber is declared in a md front matter:
 
 ```yaml
 ---
-version: 0.6
+version: 0.7
 chamber: design
-sibling: implementation.md
+siblings: [implementation.md, implementation_milestone_one.md, milestones.md]
 actors:
-  DBJ: { role: supervisor, kind: human,  writes: rulings }
-  ASH: { role: reviewer,   kind: agent,  writes: objections }
-  ZED: { role: author,     kind: agent,  writes: answers }
+  DBJ: { role: [supervisor],       kind: human, writes: rulings }
+  ASH: { role: [author, reviewer], kind: agent, writes: objections and answers }
+  ZED: { role: [author, reviewer], kind: agent, writes: objections and answers }
 signal:
   ASH: false
   ZED: false
@@ -68,17 +68,21 @@ protocol:
 | Key | Meaning |
 |---|---|
 | `chamber` | What this room is about. One word. |
-| `sibling` | The other chamber on the same subject, if any. |
+| `siblings` | The other chambers on the same subject. A list, possibly empty — every chamber names all the others, so any one of them is a way in. |
 | `actors` | Who may write here, and what each is for. |
 | `signal` | One boolean per non-supervisor actor. The only place signal state lives. |
 | `protocol` | The rules, restated nowhere else in the file. |
 
 **Roles.** `author` writes the body and answers objections. `reviewer` raises
-objections and does not write the body. `supervisor` is human, rules on
-`[open]` items, and is never blocked by the signal.
+objections. `supervisor` is human, rules on `[open]` items, and is never
+blocked by the signal.
 
-The body then holds one `<details>` block per actor, in the order supervisor,
-author, reviewer.
+**Roles are persistent, not per-chamber.** An actor carries the same roles
+into every room. Every agent actor holds both `author` and `reviewer` — which
+one it is acting as follows from the item it is writing, not from the file it
+is writing in. Only `supervisor` is exclusive, and only DBJ holds it.
+
+The body then holds one `<details>` block per actor, supervisor first.
 
 ## Item states
 
