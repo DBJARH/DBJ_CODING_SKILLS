@@ -51,12 +51,12 @@ version: 0.6
 chamber: design
 sibling: implementation.md
 actors:
-  DBJ:   { role: supervisor, kind: human,  writes: rulings }
-  ASH:   { role: reviewer,   kind: agent,  writes: objections }
-  DRAFT: { role: author,     kind: agent,  writes: answers }
+  DBJ: { role: supervisor, kind: human,  writes: rulings }
+  ASH: { role: reviewer,   kind: agent,  writes: objections }
+  ZED: { role: author,     kind: agent,  writes: answers }
 signal:
   ASH: false
-  DRAFT: false
+  ZED: false
 protocol:
   - One collapsed <details> block per actor, id = actor name.
   - One line per item, opening with [settled] | [fix] | [open].

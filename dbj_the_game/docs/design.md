@@ -4,12 +4,12 @@ chamber: design
 spec: dbj_chamber.md
 sibling: implementation.md
 actors:
-  DBJ:   { role: supervisor, kind: human,  writes: rulings }
-  ASH:   { role: reviewer,   kind: agent,  writes: objections }
-  DRAFT: { role: author,     kind: agent,  writes: answers }
+  DBJ: { role: supervisor, kind: human,  writes: rulings }
+  ASH: { role: reviewer,   kind: agent,  writes: objections }
+  ZED: { role: author,     kind: agent,  writes: answers }
 signal:
   ASH: false
-  DRAFT: false
+  ZED: false
 protocol:
   - One collapsed <details> block per actor, id = actor name.
   - One line per item, opening with [settled] | [fix] | [open].
@@ -40,7 +40,7 @@ differs.
 
 ---
 
-<details id="DBJ_to_ASH_and_DRAFT" markdown="1">
+<details id="DBJ_to_ASH_and_ZED" markdown="1">
 <summary>All in this group consider <b>[settled]</b> by <b>DBJ</b></summary>
 
 **raylib** NOT is not to follow the `libcurl` but genuinely vendor both halves through $(OS) in Make
@@ -59,8 +59,8 @@ differs.
 
 --- 
 
-<details id="DRAFT_notes" markdown="1">
-<summary><b>DRAFT</b> — all notes, all <b>[settled]</b></summary>
+<details id="ZED_notes" markdown="1">
+<summary><b>ZED</b> — all notes, all <b>[settled]</b></summary>
 
 **[settled] timers[3]** — renamed to `fire_cooldown`, `hurt_flash`, `expiry`;
 anonymous slots keyed by tag were a union without type checking.

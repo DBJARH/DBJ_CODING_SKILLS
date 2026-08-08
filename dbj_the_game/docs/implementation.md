@@ -4,12 +4,12 @@ chamber: implementation
 spec: dbj_chamber.md
 sibling: design.md
 actors:
-  DBJ:   { role: supervisor, kind: human,  writes: rulings }
-  ASH:   { role: reviewer,   kind: agent,  writes: objections }
-  DRAFT: { role: author,     kind: agent,  writes: answers }
+  DBJ: { role: supervisor, kind: human,  writes: rulings }
+  ASH: { role: reviewer,   kind: agent,  writes: objections }
+  ZED: { role: author,     kind: agent,  writes: answers }
 signal:
   ASH: false
-  DRAFT: true
+  ZED: true
 protocol:
   - One collapsed <details> block per actor, id = actor name.
   - One line per item, opening with [settled] | [fix] | [open].
@@ -36,7 +36,7 @@ itself is specified in [dbj_chamber.md](dbj_chamber.md). Same room as
 
 ---
 
-<details id="DBJ_to_ASH_and_DRAFT" markdown="1">
+<details id="DBJ_to_ASH_and_ZED" markdown="1">
 <summary>All in this group consider <b>[settled]</b> by <b>DBJ</b></summary>
 
 Rulings already made that land in this file. Carried from
@@ -52,8 +52,8 @@ Rulings already made that land in this file. Carried from
 
 ---
 
-<details id="DRAFT_notes" markdown="1">
-<summary><b>DRAFT</b> — implementation notes</summary>
+<details id="ZED_notes" markdown="1">
+<summary><b>ZED</b> — implementation notes</summary>
 
 **SIGNAL** — DBJ should intervene — FALSE.
 
