@@ -7,44 +7,30 @@ version: 0.1
 A C23 + raylib rewrite of a C++14/SFML side-scroller.
 Design: [docs/design.md](docs/design.md).
 
-**Status: design only. Nothing is built yet** — raylib is not installed
-on this machine. See the design's *Build* section.
+## Why
 
-## Why this is not just a game
-
-The other folders in [this repo](../README.md) are proofs-of-concept in
-the strict sense: one idea, one file, self-contained. This one is a POC
-too, but of a different thing.
-
-What the small examples cannot show is whether
+What the POCs (aka "small examples") elsewhere in this repo cannot show is whether
 [toplevel/](../toplevel/) and [third_party/](../third_party/) survive
-contact with a real program — several headers in use at once, thousands
-of lines, an external library, a frame budget. A header that is pleasant
-in a fifty-line demo and unusable at size has not actually been proved.
+contact with a real program.
 
-So the game is the load, and the toolkit is the subject.
+## What is tried 
 
-## What it is meant to exercise
+These artefacts are to be used. Where they land in the code is decided
+while writing it.
 
-Intent, not yet fact — this table is a design commitment to be checked
-off as the code lands.
+<br id="artefacts_used">
 
-| Artefact | Exercised by |
+| Artefact | Has to show |
 |---|---|
-| `toplevel/dbj_defer.h` | file handle in `map.c`, raylib texture handles in `draw.c` — the only places the simulation owns a resource |
-| `toplevel/dbj_result.h` | `map_load` and asset loading — the failure paths, where a game usually just exits |
-| `toplevel/dbj_simple_log.h` | startup, asset resolution, spawn refusals |
-| `toplevel/dbj_clintro.h` | the banner in `main` |
-| `toplevel/dbj_macros.h` | `DBJ_LOOP_AS` over the arenas and the map grid |
-| `toplevel/dbj_nanobench.h` | dispatch cost of `entity_step` over a synthetic arena — same compiler, same flags |
-| `toplevel/dbj_required_compile_time.h` | GCC-15-only gate, same as everything else here |
-| `third_party/tau` | unit tests over the simulation — which is plain C on plain data, so it tests without a window |
-| `third_party/dbc_assert` | preconditions on spawn and despawn |
-
-The repo's [core principles](../CLAUDE.md#core-coding-principles) apply
-unchanged. Two of them are the whole point of the exercise: principle 9
-(`static` + size on every array parameter) and the no-`default` `switch`
-that makes an unhandled entity kind a compile error.
+| `toplevel/dbj_defer.h` | resource ownership that survives early returns |
+| `toplevel/dbj_result.h` | failure paths that are not `exit()` |
+| `toplevel/dbj_simple_log.h` | logging usable inside a frame loop |
+| `toplevel/dbj_clintro.h` | startup banner |
+| `toplevel/dbj_macros.h` | loop macros over real data, not toy arrays |
+| `toplevel/dbj_nanobench.h` | dispatch cost measured, not guessed |
+| `toplevel/dbj_required_compile_time.h` | the GCC-15-only gate holds |
+| `third_party/tau` | the simulation is testable without a window |
+| `third_party/dbc_assert` | preconditions worth keeping in the build |
 
 ## Lineage
 

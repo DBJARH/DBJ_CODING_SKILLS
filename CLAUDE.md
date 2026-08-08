@@ -14,6 +14,11 @@ Guidance for Claude Code when working in this repository.
   - Instead use the "Vocabulary" section
     - And point to external sources if any
 - Do not assume anything, if in doubt ask
+- Quantity != Quality
+  - Reading time is the cost, and it is paid by the user, not by you
+  - Control the quantity of your prose — in answers and in files you write
+  - Do not invent structure (sections, tables, footnotes) that was not asked for
+- Do one narrow task, then wait for the next order
 
 ## What this repo is
 
