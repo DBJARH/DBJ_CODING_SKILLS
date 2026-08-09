@@ -165,9 +165,34 @@ which one it is.
 
 | | |
 |---|---|
-| Compiler | GCC 15.2.0, `-std=c23` — `G:\mingw64\bin\gcc.exe` on Windows |
+| Compiler | GCC 15.3.0, `-std=c23` — whatever `gcc` PATH resolves to |
 | Library | raylib 5.x, **statically linked**, vendored under `third_party/` |
 | Warnings | `-Wall -Wextra -Wswitch -Werror` — the exhaustive-switch guarantee depends on these |
+
+**No machine-local absolute path appears in this document.** An earlier
+version named the compiler as `G:\mingw64\bin\gcc.exe`; that drive died and
+took the toolchain with it, leaving a build instruction that was false and
+that nothing would have caught. The Makefile needs a path, a document does
+not — it needs a version and a language standard.
+
+Two environment variables carry the machine-local part instead, set once per
+developer, never committed:
+
+| Variable | Value here | Why it is not in the Makefile |
+|---|---|---|
+| `PATH` | must contain the toolchain `bin` (`D:\mingw\bin`) | where GCC is installed differs per machine and per platform |
+| `DBJ_BUILDS` | `D:\REPOS\DBJARH\DBJ_CODING_SKILLS\builds` | every folder here builds into one tree; unset falls back to `../builds` |
+
+On Windows both are user environment variables
+(`[Environment]::SetEnvironmentVariable(..., "User")`), which only new shells
+see — an already-running shell keeps the environment it started with.
+
+**Bumping GCC means re-running the suite.** The pinned version is the one the
+build is known good against, not a floor. A new major version changes
+diagnostics, and this build treats every warning as an error, so a bump can
+fail the build outright — and can change behaviour the suite exists to pin
+down. Run [`tests/dbj_the_game_test.c`](../tests/dbj_the_game_test.c) via
+`make test` and record the new version here in the same commit.
 
 **raylib is vendored, not installed.** It lives in the repo alongside the
 other third-party code, one folder per platform, so a clone builds without a

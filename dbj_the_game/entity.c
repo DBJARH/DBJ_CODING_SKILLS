@@ -66,12 +66,17 @@ static void step_player(entity ent[static 1], float dt,
 	if (ent->hurt_flash > 0.0f)
 		ent->hurt_flash -= dt;
 
+	player_motion was = ent->motion;
 	if (!ent->grounded)
 		ent->motion = PLAYER_JUMP;
 	else if (in->left || in->right)
 		ent->motion = PLAYER_WALK;
 	else
 		ent->motion = PLAYER_REST;
+
+	// The clock belongs to the motion, so entering a motion restarts it --
+	// otherwise a walk resumed after a jump lands mid-stride.
+	ent->anim_time = (ent->motion == was) ? ent->anim_time + dt : 0.0f;
 }
 
 static void step_warrior(entity ent[static 1], float dt, world w[static 1])

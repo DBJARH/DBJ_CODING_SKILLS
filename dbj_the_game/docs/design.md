@@ -29,7 +29,9 @@ choices below are made with that in mind; where a header is exercised, it is
 named.
 
 The ancestor lives in `lineage/tec_drakula` — MIT, © Pedro Foresti Leão, used
-with the author's permission. It is git-ignored: reference only, never built.
+with the author's written permission. It is committed, not ignored: reference
+only, never built, but a reference on one machine is one drive failure from
+gone. Its sprite art is used; see [readme.md](../readme.md).
 
 ## Discussion
 
@@ -527,10 +529,15 @@ Called out so nothing looks accidentally missing.
    The C23 *code* owes nothing: it is a rewrite, not a copy. Only the
    binary assets and map files carry the obligation.
 
-   **Taken as the first reading:** placeholder art, freshly written maps,
-   no upstream files and therefore no notice owed. If upstream art is ever
-   copied in, one credit line in `dbj_the_game/readme.md` discharges the
-   obligation — a separate file is not needed.
+   **Ruled by DBJ, 2026-08-10: the second reading.** There is written
+   permission from Pedro by email, and the sprite art is used. Five sheets
+   are committed under `assets/`, credited in
+   [readme.md](../readme.md#lineage-and-credits) — the one credit line
+   discharges the obligation, and no separate licence file is added, which
+   is what the original ruling asked for.
+
+   Maps stay freshly written. `assets/castle.txt` is this project's own, not
+   Pedro's, so the two are worth telling apart in the credit.
 3. **Name — ruled by DBJ: `DBJ_THE_GAME`.** Window title, banner, and docs
    identity all take it. The executable stays lowercase `dbj_the_game`
    (`.exe` on Windows) to match the folder and every other build target in

@@ -5,6 +5,7 @@
 #include <raylib.h>
 
 #include <dbj_clintro.h>
+#include <dbj_defer.h>
 
 #include <stdio.h>
 #include <string.h>
@@ -48,7 +49,15 @@ int main(int argc, char *argv[static argc + 1])
 	}
 
 	InitWindow(WINDOW_WIDTH, WINDOW_HEIGHT, "DBJ_THE_GAME");
+	defer { CloseWindow(); }
 	SetTargetFPS(60);
+
+	// Textures need a GL context, so this cannot move above InitWindow --
+	// and their handles must not outlive it either. Defers run in reverse,
+	// so declaring this one second unloads the art before the window goes:
+	// the ordering is the language's to keep, not the reader's.
+	draw_load_art();
+	defer { draw_unload_art(); }
 
 	while (!WindowShouldClose()) {
 		input_state now = input_poll();
@@ -62,6 +71,5 @@ int main(int argc, char *argv[static argc + 1])
 		draw_world(&game);
 	}
 
-	CloseWindow();
 	return 0;
 }

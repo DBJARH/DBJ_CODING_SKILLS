@@ -27,6 +27,11 @@ Thumbs.db
 # between the Windows and Linux dev machines) — never checked in
 .vscode/
 
-# C++ ancestor of dbj_the_game, kept locally for reference only.
-# Upstream MIT (© Pedro Foresti Leão), has its own .git, never checked in here.
-/dbj_the_game/lineage/
+# Poor man's message bus (see dbj_poor_mans_message_bus.md) — the folder is
+# tracked, its traffic is not
+/pm_mbus/*
+!/pm_mbus/.gitkeep
+
+# dbj_the_game/lineage/ is NOT ignored: the C++ ancestor is committed here on
+# purpose, so the reference survives a lost drive. Upstream MIT
+# (© Pedro Foresti Leão), used with the author's written permission.

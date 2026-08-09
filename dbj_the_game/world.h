@@ -54,6 +54,7 @@ typedef struct {
 	float fire_cooldown;
 	float hurt_flash;
 	float expiry;
+	float anim_time;    // seconds in the current motion; drives the walk cycle
 } entity;
 
 // Storage is inline and caller-owned. `world w = {0}` is a valid empty

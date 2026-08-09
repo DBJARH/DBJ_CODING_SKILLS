@@ -31,11 +31,22 @@ These artefacts are to be used. Where they land in the code is decided 32while w
 | `third_party/tau` | the simulation is testable without a window |
 | `third_party/dbc_assert` | preconditions worth keeping in the build |
 
-## Lineage
+## Lineage and credits
 
-`lineage/tec_drakula` — the C++14 ancestor. MIT, © Pedro Foresti Leão,
-used with the author's permission. Git-ignored: reference only, never
-built, never linked against.
+`lineage/tec_drakula` — the C++14 ancestor,
+[forestileao/tec-dracula](https://github.com/forestileao/tec-dracula).
+MIT, © Pedro Foresti Leão, used with the author's written permission.
+Committed here, not ignored: a copy that lives on one machine is one
+drive failure from gone. Reference only — never built, never linked
+against.
+
+**Sprite art in `assets/` is Pedro's**, copied from that tree:
+`tileset_player.png`, `warrior.png`, `knife.png`, `obstacles.png`,
+`fire.png`. The frame rectangles in `draw.c` are his too, taken from the
+ancestor's headers rather than measured by eye.
+
+`assets/castle.txt` is *not* his — the map is written fresh for this
+rewrite. So is every line of C23 here: this is a rewrite, not a port.
 
 ## Vocabulary
 
