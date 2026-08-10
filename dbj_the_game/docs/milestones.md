@@ -1,5 +1,5 @@
 ---
-version: 0.2
+version: 0.3
 chamber: milestones
 spec: dbj_chamber.md
 siblings: [design.md, implementation.md, implementation_milestone_one.md]
@@ -8,8 +8,8 @@ actors:
   ASH: { role: [author, reviewer], kind: agent, writes: objections and answers }
   ZED: { role: [author, reviewer], kind: agent, writes: objections and answers }
 signal:
-  ASH: false
-  ZED: false
+  ASH: true
+  ZED: true
 protocol:
   - One collapsed <details> block per actor, id = actor name.
   - One line per item, opening with [settled] | [fix] | [open].
@@ -28,15 +28,20 @@ in the body would read as a plan, and nobody agreed to a plan.
 
 ## Discussion
 
-Actors, rules and signal state are in this file's front matter; the protocol
-itself is specified in [dbj_chamber.md](dbj_chamber.md).
-
 ---
 
 <details id="DBJ_notes" markdown="1">
 <summary><b>DBJ</b> — rulings</summary>
 
-**never ending game** is fine for initial release, but not for next one
+**SIGNAL** — ASH: true
+**SIGNAL** — ZED: true
+
+[open] **never ending game** is fine for initial release, but not for next one. MILESTONE 2 will contain DEATH_EXIT_DIALOGUE asking the user to "Restart" or "Exit", with two buttons.
+
+[open] **parent branch: MILESTONE_2**, spawned from the master branch. All
+lesser branches logically inside milestone 2 will be spawned from this branch
+and merged back to this branch, and MILESTONE_2 merges back to master when ASH
+and ZED agree milestone 2 is ready.
 
 **no ini file** for milestone one — external config always needs hardcoded
 default values, in case the human makes a mistake writing it
@@ -48,8 +53,7 @@ default values, in case the human makes a mistake writing it
 <details id="ASH_notes" markdown="1">
 <summary><b>ASH</b> — the ladder</summary>
 
-**SIGNAL** — held at FALSE: milestone two has one ruled requirement and no
-ruled contents.
+
 
 **[settled] milestone one contents** — taken from
 [design.md](design.md#open-decisions), where DBJ ruled the scope.
@@ -70,7 +74,20 @@ into any other.
 <details id="ZED_notes" markdown="1">
 <summary><b>ZED</b> — objections</summary>
 
-**SIGNAL** — ZED has not read this chamber yet.
+**SIGNAL** — read.
+
+**[settled] the three milestone-one questions** — all ruled by DBJ. Knives
+bypass the invulnerability window on purpose, so ranged stays useful. `FIRE`
+and `SPIKE` are two things: a spike bites on contact, a fire burns while you
+stand in it. `player_dead` belongs to milestone two, not here.
+
+**[settled] milestone one has no end state** — the death dialogue is milestone
+two. Milestone one compiles and runs without it, as ruled.
+
+**[open] MILESTONE_2 is a project branch, not an agent branch** — it carries no
+`ZED/` or `ASH/` prefix, because it is the whole project's rung. Agent work
+inside it branches from `MILESTONE_2` and merges back into it. Nobody has cut
+it yet.
 
 </details>
 
@@ -80,7 +97,7 @@ into any other.
 
 ## Milestone one — one stage, no end
 
-**Status: code complete, tested, three questions open for DBJ.** Judged in
+**Status: code complete, tested, all questions ruled.** Judged in
 [implementation_milestone_one.md](implementation_milestone_one.md).
 
 One stage (`castle.txt`), one player, `WARRIOR` as the only enemy kind, no
@@ -98,9 +115,9 @@ The build reports its own rung: `dbj_the_game --version` prints
 `milestone:1 iteration:1`, hardcoded in `milestone_iteration.inc` and bumped
 by hand.
 
-Outstanding before this rung is closed: three questions for DBJ — whether a
-knife respects the invulnerability window, what `player_dead` is for, and
-whether `SPIKE` and `FIRE` are two things or one.
+The three questions that held this rung open are ruled: knives bypass the
+invulnerability window deliberately, `SPIKE` and `FIRE` are two hazards that
+differ in behaviour, and `player_dead` waits for milestone two.
 
 <a id="milestone-two"></a>
 
@@ -109,7 +126,15 @@ whether `SPIKE` and `FIRE` are two things or one.
 **Status: one ruled requirement, contents open.**
 
 **Ruled:** the never-ending stage is not acceptable here. Milestone two must
-ship an end condition — the game has to be winnable.
+ship an end condition — the game has to be winnable. On death the game stops
+and `DEATH_EXIT_DIALOGUE` offers two buttons, "Restart" and "Exit"; this is
+where `player_dead` stops being a flag nobody reads.
+
+**Ruled:** milestone two work lives on the `MILESTONE_2` branch, cut from
+`master`. It is a project branch, not an agent one — no `ZED/` or `ASH/`
+prefix. Everything logically inside milestone two branches from it and merges
+back into it; `MILESTONE_2` reaches `master` only when ASH and ZED agree the
+rung is done.
 
 Nothing else on this rung is ruled. The design recommends that the boss
 arrives with it and brings the end condition along, and that the archer and a
