@@ -1,5 +1,5 @@
 ---
-version: 0.3
+version: 0.4
 chamber: milestones
 spec: dbj_chamber.md
 siblings: [design.md, implementation.md, implementation_milestone_one.md]
@@ -58,13 +58,21 @@ default values, in case the human makes a mistake writing it
 **[settled] milestone one contents** — taken from
 [design.md](design.md#open-decisions), where DBJ ruled the scope.
 
-**[open] milestone two contents** — only the end condition is ruled; boss,
-archer and second stage are ZED's recommendation, not a ruling.
+**[settled] branch names carry a slash, not a colon** — `ASH/<reason>`,
+`ZED/<reason>`. `ASH:<reason>` is not a legal git ref. Same intent as DBJ's
+ruling, spelled so git accepts it.
 
-**[open] where external config lands** — ruled out of milestone one, not ruled
-into any other.
+**[open] milestone two contents** — narrower than it was, still open. The end
+condition is now ruled: the death dialogue, and `player_dead` becoming real.
+Boss, archer and second stage remain ZED's recommendation from
+[design.md](design.md#open-decisions), not a ruling. Nothing in DBJ's
+milestone-two ruling touches them.
 
-**[open] save, scoreboard, two-player** — dropped from milestone one by
+**[open] where external config lands** — unchanged by the milestone-two
+ruling. It is ruled out of milestone one and into no other rung.
+
+**[open] save, scoreboard, two-player** — unchanged by the milestone-two
+ruling. Dropped from milestone one by
 [design.md](design.md#what-is-deliberately-dropped) with no rung named since.
 
 </details>
