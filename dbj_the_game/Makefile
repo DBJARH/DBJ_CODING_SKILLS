@@ -4,6 +4,9 @@ CFLAGS    := -std=c23 -Wall -Wextra -Wswitch -Werror -I ../toplevel
 BUILD_DIR := $(if $(DBJ_BUILDS),$(DBJ_BUILDS),../builds)
 
 SOURCES   := main.c world.c entity.c physics.c map.c input.c draw.c
+# build_timestamp.inc is deliberately absent from this list. It is written
+# by make.sh before every build, so naming it here would relink the test
+# binary too -- and the simulation has no version string in it.
 HEADERS   := main.h world.h entity.h physics.h map.h input.h draw.h \
              milestone_iteration.inc
 
@@ -55,7 +58,13 @@ all: $(TARGET)
 $(BUILD_DIR):
 	$(MKDIR)
 
-$(TARGET): $(SOURCES) $(HEADERS) ../toplevel/dbj_defer.h ../toplevel/dbj_clintro.h | $(BUILD_DIR)
+# The wildcard is what keeps a bare `make` working on a fresh clone: the
+# stamp is a dependency when it exists and simply is not one when it does
+# not, which is exactly the __has_include fallback in main.h expressed to
+# make. When make.sh rewrites it, this target relinks and the binary tells
+# the truth about when it was built.
+$(TARGET): $(SOURCES) $(HEADERS) $(wildcard build_timestamp.inc) \
+           ../toplevel/dbj_defer.h ../toplevel/dbj_clintro.h | $(BUILD_DIR)
 	$(CC) $(CFLAGS) $(RAYLIB_CFLAGS) -o $(TARGET) $(SOURCES) $(RAYLIB_LIBS)
 
 $(TEST_TARGET): $(TEST_SOURCES) $(HEADERS) | $(BUILD_DIR)

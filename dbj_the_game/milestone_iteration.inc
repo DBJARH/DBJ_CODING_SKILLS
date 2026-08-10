@@ -6,5 +6,6 @@
 //
 // Unrelated to the `version:` keys in docs/. Those version documents; these
 // version the program.
+// Human supervisor updates these values
 #define DBJ_THE_GAME_MILESTONE 1
-#define DBJ_THE_GAME_ITERATION 1
+#define DBJ_THE_GAME_ITERATION 13

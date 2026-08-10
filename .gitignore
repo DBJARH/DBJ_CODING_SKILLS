@@ -33,6 +33,10 @@ Thumbs.db
 !/.colocuting/.gitkeep
 !/.colocuting/colocutor_names.json
 
+# Written by dbj_the_game/make.sh before every build. Generated, so not
+# committed -- milestone_iteration.inc beside it is the hand-written one.
+/dbj_the_game/build_timestamp.inc
+
 # dbj_the_game/lineage/ is NOT ignored: the C++ ancestor is committed here on
 # purpose, so the reference survives a lost drive. Upstream MIT
 # (© Pedro Foresti Leão), used with the author's written permission.

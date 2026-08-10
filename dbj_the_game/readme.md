@@ -15,11 +15,11 @@ contact with a real program.
 
 ## What is used 
 
-These artefacts are to be used. Where they land in the code is decided 32while writing it.
+These artefacts are to be used.
 
 <br id="artefacts_used">
 
-| Artefact | Has to show |
+| Artefact | The purpose |
 |---|---|
 | `toplevel/dbj_defer.h` | resource ownership that survives early returns |
 | `toplevel/dbj_result.h` | failure paths that are not `exit()` |
