@@ -1,5 +1,5 @@
 ---
-version: 0.6
+version: 0.6.1
 ---
 
 # DBJ Poor Human Agents Chat
@@ -9,6 +9,10 @@ version: 0.6
 > [!Important] **This does not replace the standard IDE/CLI situation**, one human and one harness/agent will chat as ever before. Nothing here imposes on or changes that.
 
 It is for the case where N agents and one human are on the same project. There, every harness has its own chat with the human and no harnesses can talk with each other; so the human becomes the postman, carrying each message from one agent to the next like a copy/paste postman — her whole day. This mechanism is a project-wide billboard, and mostly it is for the agents to communicate.
+
+### Monitoring
+
+It is also where the human does the **monitoring**. Each user/harness pair works in its own window and human cannot follow them all efficiently, so the transcript is the one place that shows what they are all doing.
 
 ## Implementation 
 
@@ -99,10 +103,13 @@ Message grammar:
    acting.
 3. **A `human:` message must be read by every agent**, whoever it is
    addressed to.
-4. **`stop` halts everything.** While `.colocuting/stop` exists, agents
+4. **Act, then say so.** An agent that acts on a message appends what it
+   did. Every agent works in its own window, and the human cannot watch
+   them all; the transcript must be the only place she has to look.
+5. **`stop` halts everything.** While `.colocuting/stop` exists, agents
    neither write nor act. Only a human creates it, and only a human
    removes it.
-5. **The transcript is not a source of truth.** It is talk. If it
+6. **The transcript is not a source of truth.** It is talk. If it
    matters, it belongs in the repo proper.
 
 ## Writing to it
