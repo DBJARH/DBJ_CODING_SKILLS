@@ -15,6 +15,9 @@ static vec2 kind_size(entity_kind kind)
 	case ENTITY_SPIKE:      return (vec2){CELL, CELL};
 	case ENTITY_FIRE:       return (vec2){CELL, CELL};
 	}
+	// Not dead code: -Wreturn-type does not accept an exhaustive switch as
+	// an exit, and -Werror makes that fatal. -Wswitch still catches a
+	// forgotten kind above; this line only keeps the function well-formed.
 	return (vec2){0};
 }
 
@@ -28,7 +31,7 @@ static int kind_life(entity_kind kind)
 	case ENTITY_SPIKE:      return 1;
 	case ENTITY_FIRE:       return 1;
 	}
-	return 1;
+	return 1;   // same as kind_size: required by -Wreturn-type, not dead
 }
 
 // Claim a slot, or refuse. Refusal is null and the caller must cope --

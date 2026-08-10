@@ -16,6 +16,7 @@
 #define ENEMIES_MAX     (ENEMY_CAP + 1)
 #define PROJECTILES_MAX 64
 #define OBSTACLES_MAX  320
+#define SPAWNS_MAX     128  // '&' cells in a map, not obstacles
 
 typedef struct {
 	float x, y;
@@ -69,7 +70,7 @@ typedef struct {
 	int enemy_count;
 	int projectile_count;
 	int obstacle_count;
-	vec2 spawn_points[OBSTACLES_MAX];
+	vec2 spawn_points[SPAWNS_MAX];
 	int spawn_count;
 	int spawn_cursor;   // round-robin over spawn_points
 	float respawn_timer;

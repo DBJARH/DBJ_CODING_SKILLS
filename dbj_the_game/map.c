@@ -30,8 +30,10 @@ bool map_load(world w[static 1], char const path[static 1])
 				if (!world_spawn(w, ENTITY_FIRE, at)) ok = false;
 				break;
 			case '&':
-				if (w->spawn_count < OBSTACLES_MAX)
+				if (w->spawn_count < SPAWNS_MAX)
 					w->spawn_points[w->spawn_count++] = at;
+				else
+					ok = false;   // loud, like every other full arena here
 				break;
 			case 'P':
 				if (!world_spawn(w, ENTITY_PLAYER, at)) ok = false;

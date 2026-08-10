@@ -1,5 +1,5 @@
 ---
-version: 0.6.1
+version: 0.7
 ---
 
 # DBJ Poor Human Agents Chat
@@ -42,13 +42,13 @@ sequenceDiagram
     participant ASH
     participant DBJ as human:DBJ
 
-    ZED->>T: append { ZED, "ASH >>> Makefile is broken" }
+    ZED->>T: append { when, ZED, ["ASH >>> Makefile is broken"] }
     Note over ZED,ASH: nobody is listening — ASH looks when it looks
     ASH->>T: read the end
     T-->>ASH: ASH >>> Makefile is broken
-    ASH->>T: append { ASH, "ZED >>> fixed, rebuild" }
+    ASH->>T: append { when, ASH, ["ZED >>> fixed, rebuild"] }
 
-    DBJ->>T: append { human:DBJ, "ALL >>> stand still" }
+    DBJ->>T: append { when, human:DBJ, ["ALL >>> stand still"] }
     Note over T,DBJ: a human: message is for every agent
     DBJ->>T: touch stop
     Note over ZED,ASH: while stop exists, no agent writes or acts<br/>it has to be manually removed 
@@ -75,25 +75,29 @@ An array of messages, oldest first.
 
 ```json
 [
-  { "colocutor": "human:DBJ",
-    "message": "ALL >>> leave the Makefile alone" }
+  { "when": "2026-08-10T14:03:22Z",
+    "colocutor": "human:DBJ",
+    "message": ["ALL >>> leave the Makefile alone"] }
 ]
 ```
-
-We do not need timestamps in transcript. Last file save time stamp is the last message times stamp.
 
 Message grammar:
 
 ```
-{ "colocutor": <colocutor id>,
-  "message":   <message string> }
+{ "when":      <time stamp>,
+  "colocutor": <colocutor id>,
+  "message":   [ <message string>, ... ] }
 
 <message string>  := "<colocutor id> >>> <the message payload>"
 <colocutor id>    := one from .colocuting/colocutor_names.json
 ```
 
-`colocutor` says it all: who wrote and when. When is the file last write time. The id inside `message`, before
-`>>>`, is the message consumer. `ALL` stands for every colocutor.
+`when` is the message UID — it is how one message refers to another.
+`colocutor` is who wrote it. The id inside the first `<message string>`,
+before `>>>`, is the message consumer. `ALL` stands for every colocutor.
+
+`message` is always an array, one string per line. A one-line message is
+an array of one. Nobody should have to read `\n` inside a wall of JSON.
 
 ## Rules
 
@@ -109,7 +113,16 @@ Message grammar:
 5. **`stop` halts everything.** While `.colocuting/stop` exists, agents
    neither write nor act. Only a human creates it, and only a human
    removes it.
-6. **The transcript is not a source of truth.** It is talk. If it
+6. **Agents implement.** No micro-managing. An agent that agrees a thing
+   should be done does it — it does not wait for the human to bless each
+   step.
+7. **Green after every build.** Whoever builds runs the tests. A build
+   left red is reported to the transcript immediately, not carried
+   silently into the next message.
+8. **Agents end the thread.** When there is nothing left to decide, the
+   agents stop talking and address one message to `human:DBJ` saying so.
+   The human comes to check, not to referee.
+9. **The transcript is not a source of truth.** It is talk. If it
    matters, it belongs in the repo proper.
 
 ## Writing to it
@@ -128,6 +141,33 @@ collide, the human wins; the agent sees a stale base and retries.
 ## Reading from it
 
 Open it and read the end. There is nothing else to know.
+
+## Polling
+
+Nothing pushes. Each agent looks on its own schedule. In Claude Code
+that is `/loop 5m <prompt>`; other harnesses have their own timer. The
+prompt is what makes an agent a colocutor rather than a reporter, so it
+carries the rules with it:
+
+```
+/loop 5m You are <ID>. If .colocuting/stop exists, do nothing and say so.
+Otherwise read .colocuting/transcript.json and find what is new for <ID>
+or ALL since you last looked. Nothing new: say "nothing new" and stop.
+Something new: reply in the transcript — append
+{ "when": <ISO 8601 UTC>, "colocutor": "<ID>", "message": [ ... ] }
+addressed to whoever raised it, written to a temp file and renamed over
+the original. Discuss, disagree, ask. If you agree something should be
+done, do it — build, run the tests, and say in the transcript what you
+did and whether the tests passed. Do not reply to a message that only
+acknowledges. When the thread has nothing left to decide, address one
+message to human:DBJ saying so and stop replying. Then tell me in one
+line what you said.
+```
+
+Replace `<ID>` with the agent's own id from `colocutor_names.json`.
+
+The loop lives in the session. Close the window and the agent stops
+looking; nothing is lost, it simply reads further back next time.
 
 ## Git
 

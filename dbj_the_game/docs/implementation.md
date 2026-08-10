@@ -284,6 +284,11 @@ the 15 concurrent enemies are archers. That is ~16 in flight, ~20 with player
 knives — 64 is roughly **3x a derived worst case**, not a round number.
 Stated so anyone shrinking it knows what they are cutting into.
 
+**Spawn points 128** = 65, the larger ancestor map's `&` count, doubled. It
+had been `OBSTACLES_MAX`, which is a different quantity: a map dense in `&`
+and thin in `1` would size the spawn array off a number that says nothing
+about it.
+
 **Where the cap lives.** The concurrency constant belongs in `world.c` beside
 `world_respawn`, with the arena size derived from it (`enemies[16]` = cap 15
 + 1) and a comment tying the two together. Editing one without the other is
