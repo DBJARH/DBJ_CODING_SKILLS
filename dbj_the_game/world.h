@@ -18,6 +18,11 @@
 #define OBSTACLES_MAX  320
 #define SPAWNS_MAX     128  // '&' cells in a map, not obstacles
 
+// Seconds of invulnerability after a hit lands, and -- the same number
+// doing a second job -- how long the victim renders flashed. One
+// definition: entity.c counts it down, physics.c starts it.
+#define HURT_FLASH_TIME  0.5f
+
 typedef struct {
 	float x, y;
 } vec2;

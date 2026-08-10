@@ -8,7 +8,7 @@
 #define KNIFE_SPEED       320.0f
 #define KNIFE_COOLDOWN      0.5f
 #define KNIFE_LIFETIME      1.5f
-#define HURT_FLASH_TIME     0.5f
+#define WARRIOR_HOP_SPEED  300.0f  // enough to clear one CELL
 
 static entity *nearest_player(world w[static 1], vec2 from)
 {
@@ -86,14 +86,31 @@ static void step_warrior(entity ent[static 1], float dt, world w[static 1])
 	if (ent->hurt_flash > 0.0f)
 		ent->hurt_flash -= dt;
 
+	// Read before this frame's decision overwrites it: a warrior that
+	// was told to walk and has vel.x == 0 anyway was stopped by
+	// something, and the only thing that stops X is the collision pass.
+	bool was_chasing = ent->motion == PLAYER_WALK;
+
 	entity *target = nearest_player(w, ent->pos);
 	if (!target) {
 		ent->vel.x = 0.0f;
+		ent->motion = PLAYER_REST;
 		return;
 	}
+	ent->motion = PLAYER_WALK;
+	// Blocked-and-grounded means the wall or ledge in front won last
+	// frame: the mover wanted to move on X and collision zeroed it. The
+	// warrior hops. Deciding this here, not in the collision pass, is
+	// the point -- physics reports what happened, the AI decides what
+	// to do about it.
+	bool blocked = ent->grounded && ent->vel.x == 0.0f && was_chasing;
+
 	bool right = target->pos.x > ent->pos.x;
 	ent->facing_right = right;
 	ent->vel.x = right ? WARRIOR_SPEED : -WARRIOR_SPEED;
+
+	if (blocked)
+		ent->vel.y = -WARRIOR_HOP_SPEED;
 }
 
 static void step_projectile(entity ent[static 1], float dt)

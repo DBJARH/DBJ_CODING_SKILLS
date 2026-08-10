@@ -3,10 +3,10 @@
 
 #define GRAVITY       1200.0f
 #define TERMINAL_VEL   600.0f
-#define HURT_FLASH_TIME  0.5f
 #define TOUCH_DAMAGE     2
 #define KNIFE_DAMAGE     5
 #define SPIKE_DAMAGE     3
+#define FIRE_DAMAGE      1  // per hurt() window, not per frame
 
 // Resolve one mover against one solid box on whichever axis it entered
 // least far. Cheap, and adequate for axis-aligned tiles.
@@ -42,9 +42,11 @@ static void resolve_axis_y(entity mover[static 1], entity const box[static 1])
 }
 
 // One mover against every platform, X then Y. Hazards are reported
-// through `touched_hazard` rather than resolved -- they do not block.
+// through `hazard` rather than resolved -- they do not block. The two
+// hazard kinds differ in what they cost, so they are reported apart:
+// a spike is a thing you touch, a fire is a thing you stand in.
 static void collide_map(entity mover[static 1], float dt, world w[static 1],
-                        bool touched_hazard[static 1])
+                        bool touched_spike[static 1], bool in_fire[static 1])
 {
 	mover->pos.x += mover->vel.x * dt;
 	for (int j = 0; j < w->obstacle_count; ++j) {
@@ -64,8 +66,10 @@ static void collide_map(entity mover[static 1], float dt, world w[static 1],
 		entity const *box = &w->obstacles[j];
 		switch (box->kind) {
 		case ENTITY_SPIKE:
+			if (entity_overlaps(mover, box)) *touched_spike = true;
+			break;
 		case ENTITY_FIRE:
-			if (entity_overlaps(mover, box)) *touched_hazard = true;
+			if (entity_overlaps(mover, box)) *in_fire = true;
 			break;
 		case ENTITY_PLATFORM:
 		case ENTITY_PLAYER:
@@ -105,9 +109,15 @@ void physics_apply(world w[static 1], float dt)
 		player->grounded = false;
 		apply_gravity(player, dt);
 
-		bool on_hazard = false;
-		collide_map(player, dt, w, &on_hazard);
-		if (on_hazard) hurt(player, SPIKE_DAMAGE);
+		// A spike bites once when touched; a fire burns for as long as
+		// the player stands in it. Both go through hurt(), so the
+		// invulnerability window is what paces the burn -- FIRE_DAMAGE
+		// lands once per window, not once per frame.
+		bool touched_spike = false;
+		bool in_fire = false;
+		collide_map(player, dt, w, &touched_spike, &in_fire);
+		if (touched_spike) hurt(player, SPIKE_DAMAGE);
+		else if (in_fire)  hurt(player, FIRE_DAMAGE);
 	}
 
 	for (int i = 0; i < w->enemy_count; ++i) {
@@ -115,8 +125,9 @@ void physics_apply(world w[static 1], float dt)
 		foe->grounded = false;
 		apply_gravity(foe, dt);
 
-		bool on_hazard = false;   // hazards do not harm enemies
-		collide_map(foe, dt, w, &on_hazard);
+		bool touched_spike = false;   // hazards do not harm enemies
+		bool in_fire = false;
+		collide_map(foe, dt, w, &touched_spike, &in_fire);
 	}
 
 	for (int i = 0; i < w->projectile_count; ++i)
@@ -131,6 +142,11 @@ void physics_apply(world w[static 1], float dt)
 	}
 
 	// Knives vs enemies. Both die; the reap pass collects them.
+	//
+	// These two lines deliberately do not call hurt(): a knife ignores
+	// the invulnerability window, so two knives landing in one frame
+	// both count. That is what keeps ranged worth throwing. It is a
+	// decision, not an oversight -- do not "fix" it into hurt().
 	for (int i = 0; i < w->projectile_count; ++i) {
 		entity *knife = &w->projectiles[i];
 		for (int j = 0; j < w->enemy_count; ++j) {

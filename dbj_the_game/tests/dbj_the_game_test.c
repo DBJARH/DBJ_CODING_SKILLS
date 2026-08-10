@@ -120,3 +120,49 @@ TEST(entity, warrior_flash_decays_with_no_player) {
 	REQUIRE_TRUE(foe->hurt_flash < 0.5f,
 	             "hurt_flash must decay even when no player is alive");
 }
+
+// A warrior walled off from the player hops instead of grinding into
+// the wall forever. The wall is one cell tall and the player is beyond
+// it, so the only way the warrior makes ground is over the top.
+TEST(entity, walled_warrior_hops) {
+	world wld = {0};
+	world_spawn(&wld, ENTITY_PLATFORM, (vec2){0.0f, 200.0f});
+	world_spawn(&wld, ENTITY_PLATFORM, (vec2){40.0f, 200.0f});
+	world_spawn(&wld, ENTITY_PLATFORM, (vec2){80.0f, 200.0f});
+	world_spawn(&wld, ENTITY_PLATFORM, (vec2){80.0f, 160.0f});   // the wall
+	entity *foe = world_spawn(&wld, ENTITY_WARRIOR, (vec2){40.0f, 157.0f});
+	entity *player = world_spawn(&wld, ENTITY_PLAYER, (vec2){200.0f, 157.0f});
+	REQUIRE_TRUE(foe != nullptr && player != nullptr, "both slots must exist");
+
+	input_state idle = {0};
+	run(&wld, &idle, 120);
+
+	REQUIRE_TRUE(foe->pos.y < 157.0f || foe->pos.x > 80.0f,
+	             "a warrior blocked on X must leave the ground, not grind");
+}
+
+// Fire and spikes are not the same hazard. Both bite, and hurt()'s
+// window paces both, so "it hurt me" proves nothing -- the difference
+// is the price per bite. Two identical worlds, one hazard each, same
+// number of frames: the fire world must have life left over.
+static int life_after_standing_on(entity_kind hazard, int frames)
+{
+	world wld = {0};
+	world_spawn(&wld, ENTITY_PLATFORM, (vec2){0.0f, 200.0f});
+	world_spawn(&wld, hazard, (vec2){0.0f, 160.0f});
+	entity *player = world_spawn(&wld, ENTITY_PLAYER, (vec2){0.0f, 157.0f});
+	if (!player) return -1;
+
+	input_state idle = {0};
+	run(&wld, &idle, frames);
+	return player->life;
+}
+
+TEST(physics, fire_costs_less_per_bite_than_a_spike) {
+	int const on_fire  = life_after_standing_on(ENTITY_FIRE, 120);
+	int const on_spike = life_after_standing_on(ENTITY_SPIKE, 120);
+
+	REQUIRE_TRUE(on_fire > 0 || on_spike > 0, "both worlds must have spawned");
+	REQUIRE_TRUE(on_fire > on_spike,
+	             "fire and spikes must not cost the same -- that was the bug");
+}
