@@ -1,5 +1,5 @@
 ---
-version: 0.2
+version: 0.3
 chamber: milestone_one
 spec: dbj_chamber.md
 siblings: [design.md, implementation.md, milestones.md]
@@ -8,7 +8,7 @@ actors:
   ASH: { role: [author, reviewer], kind: agent, writes: objections and answers }
   ZED: { role: [author, reviewer], kind: agent, writes: objections and answers }
 signal:
-  ASH: false
+  ASH: true
   ZED: false
 protocol:
   - One collapsed <details> block per actor, id = actor name.
@@ -48,7 +48,7 @@ probes.
 <details id="ASH_notes" markdown="1">
 <summary><b>ASH</b> — verdict and remediation</summary>
 
-**SIGNAL** — held at FALSE: two items still need DBJ.
+**SIGNAL** — TRUE. Nothing in this chamber waits on DBJ any more.
 
 **[settled] verdict** — iteration one is sound and playable; it is not yet a
 toolkit load, which is what the readme says it exists to be.
@@ -74,14 +74,28 @@ impose an invulnerability window on knives, which is a rule nobody has made.
 A knife dies on its first hit, so the two paths barely differ in play. Raised
 as a `[fix]`, it is really an `[open]`, and it is below.
 
-**[open] knife invulnerability** — should a knife respect the 0.5s window a
-touch hit opens, or always land? Two defensible answers, hence DBJ's.
+**[settled] knife invulnerability** — DBJ ruled: a knife always lands. It
+bypasses the window on purpose, so ranged stays worth throwing. The code was
+already right; it carries a comment now saying it is a decision.
 
-**[open] player_dead** — `reap()` writes it and nobody reads it; either wire it
-or drop it, ASH will not choose alone.
+**[settled] player_dead** — DBJ ruled: it belongs to milestone two, where the
+death dialogue reads it. Milestone one has no end state, as the design says.
 
-**[open] spike vs fire** — two enum kinds, identical size, damage and
-handling; the distinction is decoration until something differs.
+**[settled] spike vs fire** — DBJ ruled: two things. A spike bites once on
+contact, a fire burns while you stand in it. Delivered in `96cbb89`, under
+review.
+
+**[settled] fire does not open the invulnerability window** — ASH's ruling,
+delegated by DBJ. Making fire cheap per bite turned it into armour: one shared
+window means the smallest damage source in the game holds it open against the
+larger ones. Measured on `96cbb89` — two seconds beside a warrior costs 8 life,
+the same two seconds standing in the fire costs 4. The rule: a burn is not a
+hit. Fire gets its own cooldown, and leaves `hurt_flash` to the thing it is
+named for. This also splits the two jobs `hurt_flash` was doing at once.
+
+**[open] who implements the burn cooldown** — `physics.c` is ZED's until
+`96cbb89` merges, and it is the same function ZED must reopen for the hop. ASH
+takes it if ZED does not.
 
 </details>
 
@@ -103,6 +117,7 @@ handling; the distinction is decoration until something differs.
 - [Defects](#defects)
 - [The suite](#the-suite)
 - [Remediation](#remediation)
+- [Rulings](#rulings)
 
 ## Verdict
 
@@ -141,9 +156,9 @@ Three questions wait on DBJ. None of them blocks the milestone.
 | 5 | `world.c` | `reap()` sets `player_dead`; nothing reads it. Player death is a terminal non-state — no restart, no exit, and the spawner keeps refilling around a corpse. |
 | 6 | `world.h` | `ENTITY_SPIKE` and `ENTITY_FIRE` have identical size, identical damage and identical handling. Two tags, one behaviour. |
 
-Defects 1 and 2 are build correctness and belong to ASH. Defects 3 and 4 have
-one obvious fix each. Defects 5 and 6 are design questions wearing code
-clothes, and are for DBJ.
+Defects 1 and 2 are build correctness and belong to ASH. Defect 3 had one
+obvious fix. Defects 4, 5 and 6 were design questions wearing code clothes,
+and are now ruled — see [Rulings](#rulings).
 
 ## The suite
 
@@ -188,8 +203,28 @@ fix — calling `hurt()` would give knives an invulnerability window, and no
 such rule exists. It moved to the `[open]` list rather than being quietly
 decided in code.
 
-Three items now wait on DBJ: the knife window, `player_dead`, and whether
-`SPIKE` and `FIRE` are two things or one.
+<a id="rulings"></a>
+
+## Rulings
+
+The three questions this chamber held open are ruled, and one new one came out
+of the answers.
+
+| Question | Ruling | Whose |
+|---|---|---|
+| Does a knife respect the 0.5s window? | No, always lands — ranged has to stay worth throwing | DBJ |
+| What is `player_dead` for? | Milestone two, where the death dialogue reads it | DBJ |
+| Are `SPIKE` and `FIRE` one thing? | Two. A spike bites on contact, a fire burns while stood in | DBJ |
+| Does a burn open the window? | No. Fire gets its own cooldown | ASH, delegated |
+
+The last one is not a fourth question so much as the bill for the third. Once
+fire costs less per bite than anything else, and every source shares one
+invulnerability window, standing in fire is cheaper than standing next to a
+warrior — measured, not argued: 8 life against 4 over the same two seconds. A
+burn is not a hit, so it does not grant the pause that follows a hit.
+
+`hurt_flash` was carrying two meanings at once, i-frame timer and render
+flash. Giving the burn its own cooldown is what separates them.
 
 ---
 
