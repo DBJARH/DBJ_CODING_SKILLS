@@ -170,3 +170,33 @@ TEST(physics, fire_costs_less_per_bite_than_a_spike) {
 	REQUIRE_TRUE(on_fire > on_spike,
 	             "fire and spikes must not cost the same -- that was the bug");
 }
+
+// A fire must cost life, never save it. The bug this holds down: fire
+// went through hurt(), so its one-point bite kept the invulnerability
+// window open and refused the warrior's two -- standing in the flames
+// halved incoming damage. Same warrior, same frames, two worlds that
+// differ only by the fire under the player's feet. The fire world must
+// have LESS life left, not more.
+static int life_beside_a_warrior(bool with_fire)
+{
+	world wld = {0};
+	world_spawn(&wld, ENTITY_PLATFORM, (vec2){0.0f, 200.0f});
+	world_spawn(&wld, ENTITY_PLATFORM, (vec2){40.0f, 200.0f});
+	if (with_fire) world_spawn(&wld, ENTITY_FIRE, (vec2){0.0f, 160.0f});
+	entity *player = world_spawn(&wld, ENTITY_PLAYER, (vec2){0.0f, 157.0f});
+	world_spawn(&wld, ENTITY_WARRIOR, (vec2){10.0f, 157.0f});
+	if (!player) return -1;
+
+	input_state idle = {0};
+	run(&wld, &idle, 120);
+	return player->life;
+}
+
+TEST(physics, fire_is_not_armour) {
+	int const clear   = life_beside_a_warrior(false);
+	int const in_fire = life_beside_a_warrior(true);
+
+	REQUIRE_TRUE(clear > 0 && in_fire > 0, "both worlds must have spawned");
+	REQUIRE_TRUE(in_fire < clear,
+	             "a fire must cost life, not save it -- 96cbb89 read 16 against 12");
+}
