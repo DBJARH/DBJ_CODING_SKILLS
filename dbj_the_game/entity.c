@@ -8,7 +8,15 @@
 #define KNIFE_SPEED       320.0f
 #define KNIFE_COOLDOWN      0.5f
 #define KNIFE_LIFETIME      1.5f
-#define WARRIOR_HOP_SPEED  300.0f  // enough to clear one CELL
+// Clearing a step of one CELL means the FEET -- pos.y + size.y, not
+// pos.y, which is the head -- must rise above the wall top. Apex is
+// v^2/2g, and the step integrator loses about g*dt/2 of it, so
+// v > sqrt(2 * GRAVITY * CELL) + GRAVITY * dt / 2, which is ~320 at
+// 60 fps. 340 for margin: it peaks the feet at 154.67 against a wall
+// top of 160. Two stacked cells would need 460, above the player's own
+// PLAYER_JUMP_SPEED -- castle.txt has no stacked platforms, so no wall
+// in the shipping stage asks for it.
+#define WARRIOR_HOP_SPEED  340.0f
 
 static entity *nearest_player(world w[static 1], vec2 from)
 {

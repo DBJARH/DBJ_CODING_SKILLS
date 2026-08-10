@@ -121,24 +121,28 @@ TEST(entity, warrior_flash_decays_with_no_player) {
 	             "hurt_flash must decay even when no player is alive");
 }
 
-// A warrior walled off from the player hops instead of grinding into
-// the wall forever. The wall is one cell tall and the player is beyond
-// it, so the only way the warrior makes ground is over the top.
-TEST(entity, walled_warrior_hops) {
+// A warrior walled off from the player gets OVER the wall, not merely
+// off the ground. Asserting "it left the ground" is weaker than the
+// claim: a hop too short to clear a cell satisfies it while clearing
+// nothing, which is exactly how a 35 px hop once passed this test.
+//
+// pos.y is the HEAD; the FEET are pos.y + size.y, and it is the feet
+// that must rise above the wall top. The floor runs past the player so
+// nothing walks off the end and gets reaped mid-measurement.
+TEST(entity, walled_warrior_clears_the_wall) {
 	world wld = {0};
-	world_spawn(&wld, ENTITY_PLATFORM, (vec2){0.0f, 200.0f});
-	world_spawn(&wld, ENTITY_PLATFORM, (vec2){40.0f, 200.0f});
-	world_spawn(&wld, ENTITY_PLATFORM, (vec2){80.0f, 200.0f});
-	world_spawn(&wld, ENTITY_PLATFORM, (vec2){80.0f, 160.0f});   // the wall
-	entity *foe = world_spawn(&wld, ENTITY_WARRIOR, (vec2){40.0f, 157.0f});
-	entity *player = world_spawn(&wld, ENTITY_PLAYER, (vec2){200.0f, 157.0f});
+	for (float x = 0.0f; x <= 400.0f; x += CELL)
+		world_spawn(&wld, ENTITY_PLATFORM, (vec2){x, 200.0f});
+	world_spawn(&wld, ENTITY_PLATFORM, (vec2){120.0f, 160.0f});   // the wall
+	entity *foe = world_spawn(&wld, ENTITY_WARRIOR, (vec2){40.0f, 160.0f});
+	entity *player = world_spawn(&wld, ENTITY_PLAYER, (vec2){280.0f, 160.0f});
 	REQUIRE_TRUE(foe != nullptr && player != nullptr, "both slots must exist");
 
 	input_state idle = {0};
-	run(&wld, &idle, 120);
+	run(&wld, &idle, 900);
 
-	REQUIRE_TRUE(foe->pos.y < 157.0f || foe->pos.x > 80.0f,
-	             "a warrior blocked on X must leave the ground, not grind");
+	REQUIRE_TRUE(foe->pos.x > 150.0f,
+	             "a warrior blocked on X must clear the wall, not hop in place");
 }
 
 // Fire and spikes are not the same hazard. Both bite, and hurt()'s
