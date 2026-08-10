@@ -120,3 +120,83 @@ TEST(entity, warrior_flash_decays_with_no_player) {
 	REQUIRE_TRUE(foe->hurt_flash < 0.5f,
 	             "hurt_flash must decay even when no player is alive");
 }
+
+// A warrior walled off from the player gets OVER the wall, not merely
+// off the ground. Asserting "it left the ground" is weaker than the
+// claim: a hop too short to clear a cell satisfies it while clearing
+// nothing, which is exactly how a 35 px hop once passed this test.
+//
+// pos.y is the HEAD; the FEET are pos.y + size.y, and it is the feet
+// that must rise above the wall top. The floor runs past the player so
+// nothing walks off the end and gets reaped mid-measurement.
+TEST(entity, walled_warrior_clears_the_wall) {
+	world wld = {0};
+	for (float x = 0.0f; x <= 400.0f; x += CELL)
+		world_spawn(&wld, ENTITY_PLATFORM, (vec2){x, 200.0f});
+	world_spawn(&wld, ENTITY_PLATFORM, (vec2){120.0f, 160.0f});   // the wall
+	entity *foe = world_spawn(&wld, ENTITY_WARRIOR, (vec2){40.0f, 160.0f});
+	entity *player = world_spawn(&wld, ENTITY_PLAYER, (vec2){280.0f, 160.0f});
+	REQUIRE_TRUE(foe != nullptr && player != nullptr, "both slots must exist");
+
+	input_state idle = {0};
+	run(&wld, &idle, 900);
+
+	REQUIRE_TRUE(foe->pos.x > 150.0f,
+	             "a warrior blocked on X must clear the wall, not hop in place");
+}
+
+// Fire and spikes are not the same hazard. Both bite, and hurt()'s
+// window paces both, so "it hurt me" proves nothing -- the difference
+// is the price per bite. Two identical worlds, one hazard each, same
+// number of frames: the fire world must have life left over.
+static int life_after_standing_on(entity_kind hazard, int frames)
+{
+	world wld = {0};
+	world_spawn(&wld, ENTITY_PLATFORM, (vec2){0.0f, 200.0f});
+	world_spawn(&wld, hazard, (vec2){0.0f, 160.0f});
+	entity *player = world_spawn(&wld, ENTITY_PLAYER, (vec2){0.0f, 157.0f});
+	if (!player) return -1;
+
+	input_state idle = {0};
+	run(&wld, &idle, frames);
+	return player->life;
+}
+
+TEST(physics, fire_costs_less_per_bite_than_a_spike) {
+	int const on_fire  = life_after_standing_on(ENTITY_FIRE, 120);
+	int const on_spike = life_after_standing_on(ENTITY_SPIKE, 120);
+
+	REQUIRE_TRUE(on_fire > 0 || on_spike > 0, "both worlds must have spawned");
+	REQUIRE_TRUE(on_fire > on_spike,
+	             "fire and spikes must not cost the same -- that was the bug");
+}
+
+// A fire must cost life, never save it. The bug this holds down: fire
+// went through hurt(), so its one-point bite kept the invulnerability
+// window open and refused the warrior's two -- standing in the flames
+// halved incoming damage. Same warrior, same frames, two worlds that
+// differ only by the fire under the player's feet. The fire world must
+// have LESS life left, not more.
+static int life_beside_a_warrior(bool with_fire)
+{
+	world wld = {0};
+	world_spawn(&wld, ENTITY_PLATFORM, (vec2){0.0f, 200.0f});
+	world_spawn(&wld, ENTITY_PLATFORM, (vec2){40.0f, 200.0f});
+	if (with_fire) world_spawn(&wld, ENTITY_FIRE, (vec2){0.0f, 160.0f});
+	entity *player = world_spawn(&wld, ENTITY_PLAYER, (vec2){0.0f, 157.0f});
+	world_spawn(&wld, ENTITY_WARRIOR, (vec2){10.0f, 157.0f});
+	if (!player) return -1;
+
+	input_state idle = {0};
+	run(&wld, &idle, 120);
+	return player->life;
+}
+
+TEST(physics, fire_is_not_armour) {
+	int const clear   = life_beside_a_warrior(false);
+	int const in_fire = life_beside_a_warrior(true);
+
+	REQUIRE_TRUE(clear > 0 && in_fire > 0, "both worlds must have spawned");
+	REQUIRE_TRUE(in_fire < clear,
+	             "a fire must cost life, not save it -- 96cbb89 read 16 against 12");
+}

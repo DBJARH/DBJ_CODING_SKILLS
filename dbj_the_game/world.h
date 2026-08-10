@@ -18,6 +18,17 @@
 #define OBSTACLES_MAX  320
 #define SPAWNS_MAX     128  // '&' cells in a map, not obstacles
 
+// Seconds of invulnerability after a hit lands, and -- the same number
+// doing a second job -- how long the victim renders flashed. One
+// definition: entity.c counts it down, physics.c starts it.
+#define HURT_FLASH_TIME  0.5f
+
+// Fire keeps its own clock. Sharing HURT_FLASH_TIME made the cheapest
+// damage source in the game hold the invulnerability window open
+// against the dearer ones, so standing in a fire was armour. A burn is
+// not a hit: it neither grants i-frames nor is stopped by them.
+#define BURN_COOLDOWN    0.5f
+
 typedef struct {
 	float x, y;
 } vec2;
@@ -54,6 +65,7 @@ typedef struct {
 	player_motion motion;
 	float fire_cooldown;
 	float hurt_flash;
+	float burn_cooldown;   // fire's own clock: a burn is not a hit
 	float expiry;
 	float anim_time;    // seconds in the current motion; drives the walk cycle
 } entity;

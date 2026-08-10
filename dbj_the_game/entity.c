@@ -8,7 +8,15 @@
 #define KNIFE_SPEED       320.0f
 #define KNIFE_COOLDOWN      0.5f
 #define KNIFE_LIFETIME      1.5f
-#define HURT_FLASH_TIME     0.5f
+// Clearing a step of one CELL means the FEET -- pos.y + size.y, not
+// pos.y, which is the head -- must rise above the wall top. Apex is
+// v^2/2g, and the step integrator loses about g*dt/2 of it, so
+// v > sqrt(2 * GRAVITY * CELL) + GRAVITY * dt / 2, which is ~320 at
+// 60 fps. 340 for margin: it peaks the feet at 154.67 against a wall
+// top of 160. Two stacked cells would need 460, above the player's own
+// PLAYER_JUMP_SPEED -- castle.txt has no stacked platforms, so no wall
+// in the shipping stage asks for it.
+#define WARRIOR_HOP_SPEED  340.0f
 
 static entity *nearest_player(world w[static 1], vec2 from)
 {
@@ -66,6 +74,14 @@ static void step_player(entity ent[static 1], float dt,
 	if (ent->hurt_flash > 0.0f)
 		ent->hurt_flash -= dt;
 
+	// Beside hurt_flash for the same reason: a clock decays with time,
+	// not with whether the thing that started it is still there. Ticked
+	// only inside the fire it would freeze on the way out, and a player
+	// who left at 0.4 remaining would still owe that 0.4 on returning
+	// an hour later.
+	if (ent->burn_cooldown > 0.0f)
+		ent->burn_cooldown -= dt;
+
 	player_motion was = ent->motion;
 	if (!ent->grounded)
 		ent->motion = PLAYER_JUMP;
@@ -86,14 +102,31 @@ static void step_warrior(entity ent[static 1], float dt, world w[static 1])
 	if (ent->hurt_flash > 0.0f)
 		ent->hurt_flash -= dt;
 
+	// Read before this frame's decision overwrites it: a warrior that
+	// was told to walk and has vel.x == 0 anyway was stopped by
+	// something, and the only thing that stops X is the collision pass.
+	bool was_chasing = ent->motion == PLAYER_WALK;
+
 	entity *target = nearest_player(w, ent->pos);
 	if (!target) {
 		ent->vel.x = 0.0f;
+		ent->motion = PLAYER_REST;
 		return;
 	}
+	ent->motion = PLAYER_WALK;
+	// Blocked-and-grounded means the wall or ledge in front won last
+	// frame: the mover wanted to move on X and collision zeroed it. The
+	// warrior hops. Deciding this here, not in the collision pass, is
+	// the point -- physics reports what happened, the AI decides what
+	// to do about it.
+	bool blocked = ent->grounded && ent->vel.x == 0.0f && was_chasing;
+
 	bool right = target->pos.x > ent->pos.x;
 	ent->facing_right = right;
 	ent->vel.x = right ? WARRIOR_SPEED : -WARRIOR_SPEED;
+
+	if (blocked)
+		ent->vel.y = -WARRIOR_HOP_SPEED;
 }
 
 static void step_projectile(entity ent[static 1], float dt)
