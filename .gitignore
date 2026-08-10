@@ -27,10 +27,11 @@ Thumbs.db
 # between the Windows and Linux dev machines) — never checked in
 .vscode/
 
-# Poor man's message bus (see dbj_poor_mans_message_bus.md) — the folder is
-# tracked, its traffic is not
-/pm_mbus/*
-!/pm_mbus/.gitkeep
+# Poor human agents chat (see dbj_poor_mans_message_bus.md) — the folder and
+# the roster are tracked, the talk in it is not
+/.colocuting/*
+!/.colocuting/.gitkeep
+!/.colocuting/colocutor_names.json
 
 # dbj_the_game/lineage/ is NOT ignored: the C++ ancestor is committed here on
 # purpose, so the reference survives a lost drive. Upstream MIT

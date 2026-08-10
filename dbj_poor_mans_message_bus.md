@@ -124,8 +124,9 @@ Open it and read the end. There is nothing else to know.
 
 ## Git
 
-`.colocuting/` is tracked only as an empty folder, via `.gitkeep`.
-Everything else in it is ignored, so a clone has todays but not
+`.colocuting/` is tracked as an empty folder, via `.gitkeep`, and so is
+`colocutor_names.json` — a clone needs to know who may take part.
+`transcript.json` and `stop` are ignored, so a clone has todays but not
 yesterday's talk.
 
 **Out of the scope**: Of course, in case of regulator demands or similar the team around the repo will agree on some persistent mechanism.
