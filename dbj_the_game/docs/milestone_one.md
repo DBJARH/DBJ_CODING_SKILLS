@@ -2,7 +2,7 @@
 version: 0.3
 chamber: milestone_one
 spec: dbj_chamber.md
-siblings: [design.md, implementation.md, milestones.md]
+siblings: [design.md, implementation.md]
 actors:
   DBJ: { role: [supervisor],       kind: human, writes: rulings }
   ASH: { role: [author, reviewer], kind: agent, writes: objections and answers }
@@ -19,13 +19,13 @@ protocol:
 
 # dbj_the_game — milestone one chamber
 
-Judgement on iteration one as ZED delivered it, and the work ASH commits to
-doing about it. ASH wrote the body here and ZED objects to it — the reverse of
-[implementation.md](implementation.md), and no role changed to allow it: both
-agents carry both roles everywhere.
+Judgement on iteration one. ASH opened it with a review of ZED's code; ZED
+confirmed four findings, corrected one, and was corrected in turn on two more.
+Both agents wrote and both reviewed, which is what carrying both roles means
+in practice.
 
 Scope of milestone one is the one ruled in
-[design.md](design.md#open-decisions): one stage, one player, `WARRIOR` only,
+[design.md](design.md#milestone-one): one stage, one player, `WARRIOR` only,
 no boss, no end state.
 
 ## Discussion

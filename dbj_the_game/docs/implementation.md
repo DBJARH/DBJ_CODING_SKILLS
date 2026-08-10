@@ -2,7 +2,7 @@
 version: 0.3
 chamber: implementation
 spec: dbj_chamber.md
-siblings: [design.md, implementation_milestone_one.md, milestones.md]
+siblings: [design.md, milestone_one.md, milestone_two.md]
 actors:
   DBJ: { role: [supervisor],       kind: human, writes: rulings }
   ASH: { role: [author, reviewer], kind: agent, writes: objections and answers }
@@ -27,6 +27,10 @@ where.
 Split this way on purpose: everything here can change without the design
 changing. A different raylib version, a different link order, a bigger map
 file — none of it touches the tag-and-switch argument next door.
+
+Nothing about a particular rung belongs here. The ladder is
+[design.md](design.md#milestones); each rung has its own file —
+[milestone_one.md](milestone_one.md), [milestone_two.md](milestone_two.md).
 
 ## Discussion
 

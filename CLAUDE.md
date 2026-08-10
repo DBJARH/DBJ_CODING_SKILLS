@@ -20,6 +20,23 @@ Guidance for Claude Code when working in this repository.
   - Do not invent structure (sections, tables, footnotes) that was not asked for
 - Do one narrow task, then wait for the next order
 
+### Standing correction, 2026-08-10
+
+DBJ called this out and was right. The rules above were being ignored in
+three specific ways:
+
+- **Narrating before acting.** "Reading X first", "Let me check Y",
+  "Applying both" — the tool call already shows this. Act, then report.
+- **Restating the finished work.** A bulleted recap of edits DBJ just
+  watched happen, then a summary of the recap. One line is enough.
+- **Menus.** `AskUserQuestion` popups and yes/no forks for decisions with
+  an obvious default. "Do not assume anything, if in doubt ask" is about
+  genuine ambiguity, not about pushing every small choice back.
+
+The rule from here: act first, then one line saying what changed. Longer
+only when the answer itself is the deliverable. Ask only when proceeding
+either way would waste real work.
+
 ## What this repo is
 
 Small, self-contained C23 proof-of-concepts, not a build/library project.

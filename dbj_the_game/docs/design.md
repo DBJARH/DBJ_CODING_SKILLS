@@ -2,7 +2,7 @@
 version: 0.7
 chamber: design
 spec: dbj_chamber.md
-siblings: [implementation.md, implementation_milestone_one.md, milestones.md]
+siblings: [implementation.md, milestone_one.md, milestone_two.md]
 actors:
   DBJ: { role: [supervisor],       kind: human, writes: rulings }
   ASH: { role: [author, reviewer], kind: agent, writes: objections and answers }
@@ -197,6 +197,7 @@ kind rather than degree: the ancestor's equivalent mistake is silent.
   - [Frame flow](#frame-flow)
   - [Memory](#memory)
   - [What is deliberately dropped](#what-is-deliberately-dropped)
+  - [Milestones](#milestones)
   - [Open decisions](#open-decisions)
   - [Vocabulary](#vocabulary)
 
@@ -380,12 +381,14 @@ flowchart TD
     entity["entity.c — entity_step, the big switch"]
     physics["physics.c — gravity, collision passes"]
     map["map.c — .txt grid to obstacles"]
-    draw["draw.c — raylib calls, all of them"]
+    draw["draw.c — the world, drawn"]
+    dialogues["dialogues.c — dialogues, all of them"]
 
     main --> game
     main --> input
     game --> world
     game --> draw
+    game --> dialogues
     world --> entity
     world --> physics
     world -.-> map
@@ -394,9 +397,15 @@ flowchart TD
 
 Solid edges run every frame; the dashed one runs once per stage load.
 
-`input.c` and `draw.c` are the only files that include `raylib.h` — one
-converts keys into a plain `input_state`, the other renders. Everything
-between them is plain C on plain data.
+`input.c`, `draw.c` and `dialogues.c` are the only files that include
+`raylib.h` — one converts keys into a plain `input_state`, the others render.
+Everything beneath them is plain C on plain data.
+
+**Dialogues live in `dialogues.c`, not `draw.c`** — ruled. `draw.c` draws the
+world; a dialogue is a different job with a different lifetime, and every
+dialogue after the first one would otherwise land in the same file. What a
+dialogue decides leaves as an enum, so nothing below this line learns that a
+window exists.
 
 That split is what makes the simulation testable, which matters more here
 than portability: with input arriving as a plain struct, a recorded input
@@ -507,6 +516,56 @@ Called out so nothing looks accidentally missing.
 - **The `Ente` base class.** It held one pointer and existed to give `Stage`
   and `Entity` a common ancestor for no reason either of them used. Gone.
 
+## Milestones
+
+The ladder. One rung per heading, each with a stable anchor so any chamber can
+point at it and mean it. A rung lands here only once DBJ has ruled its
+contents; what each rung *judges* lives in its own file.
+
+<a id="milestone-one"></a>
+
+### Milestone one — one stage, no end
+
+**Code complete, tested, all questions ruled.** Judged in
+[milestone_one.md](milestone_one.md).
+
+One stage (`castle.txt`), one player, `WARRIOR` as the only enemy kind, no
+boss. The spawner refills forever, so the player can die but cannot win —
+stated in the design, not discovered afterwards, and accepted by DBJ for the
+initial release only.
+
+Proves the tag-and-switch design end to end and puts `toplevel/` and
+`third_party/` under a real program. That is the whole job of this rung.
+
+No external configuration: hardcoded defaults are what an ini file would need
+anyway. The build reports its own rung — `dbj_the_game --version` prints
+`milestone:1 iteration:N`, hand-bumped in `milestone_iteration.inc`.
+
+Ruled: knives bypass the invulnerability window deliberately, `SPIKE` and
+`FIRE` are two hazards that differ in behaviour, and `player_dead` waits for
+the next rung.
+
+<a id="milestone-two"></a>
+
+### Milestone two — an end condition
+
+**One ruled requirement, contents open.** Planned in
+[milestone_two.md](milestone_two.md).
+
+**Ruled:** the never-ending stage is not acceptable here — milestone two must
+be winnable. On death the game stops and a dialogue offers "Restart" or
+"Exit"; this is where `player_dead` stops being a flag nobody reads.
+
+**Ruled:** the work lives on `MILESTONE_2`, cut from `master`. A project
+branch, not an agent one — no `ZED/` or `ASH/` prefix. Everything inside
+milestone two branches from it and merges back into it; it reaches `master`
+only when ASH and ZED agree the rung is done. Agent branches carry a slash,
+never a colon: `ASH/<reason>`, `ZED/<reason>` — a colon is not a legal git
+ref.
+
+Nothing else is ruled. Boss, archer and second stage remain a recommendation
+below, not a decision.
+
 ## Open decisions
 
 1. **Scope of milestone 1** — recommended: one stage (`castle.txt`), one
@@ -561,6 +620,13 @@ Called out so nothing looks accidentally missing.
 
    **Ruled by DBJ:** accepted for the initial release, **not** for the one
    after. Milestone 2 must ship an end condition.
+6. **Milestone 2 contents beyond the end condition** — the dialogue is ruled;
+   boss, archer and second stage are a recommendation from entry 1, not a
+   decision.
+7. **Where external configuration lands** — ruled out of milestone one, ruled
+   into no other rung.
+8. **Save, scoreboard, two-player** — dropped from milestone one above, with
+   no rung named since.
 
 ## Vocabulary
 

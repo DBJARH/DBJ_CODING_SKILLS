@@ -49,7 +49,7 @@ A chamber is declared in a md front matter:
 ---
 version: 0.7
 chamber: design
-siblings: [implementation.md, implementation_milestone_one.md, milestones.md]
+siblings: [implementation.md, milestone_one.md, milestone_two.md]
 actors:
   DBJ: { role: [supervisor],       kind: human, writes: rulings }
   ASH: { role: [author, reviewer], kind: agent, writes: objections and answers }
