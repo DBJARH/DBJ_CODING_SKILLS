@@ -103,12 +103,9 @@ static void hurt(entity victim[static 1], int amount)
 // Fire's own clock, deliberately not hurt(): a burn ignores the
 // invulnerability window and does not open one. The cooldown is what
 // paces it, so FIRE_DAMAGE lands twice a second and not sixty times.
-static void burn(entity victim[static 1], int amount, float dt)
+static void burn(entity victim[static 1], int amount)
 {
-	if (victim->burn_cooldown > 0.0f) {
-		victim->burn_cooldown -= dt;
-		return;
-	}
+	if (victim->burn_cooldown > 0.0f) return;
 	victim->life -= amount;
 	victim->burn_cooldown = BURN_COOLDOWN;
 }
@@ -135,7 +132,7 @@ void physics_apply(world w[static 1], float dt)
 		bool in_fire = false;
 		collide_map(player, dt, w, &touched_spike, &in_fire);
 		if (touched_spike) hurt(player, SPIKE_DAMAGE);
-		if (in_fire) burn(player, FIRE_DAMAGE, dt);
+		if (in_fire) burn(player, FIRE_DAMAGE);
 	}
 
 	for (int i = 0; i < w->enemy_count; ++i) {

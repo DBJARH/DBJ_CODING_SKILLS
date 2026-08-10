@@ -74,6 +74,14 @@ static void step_player(entity ent[static 1], float dt,
 	if (ent->hurt_flash > 0.0f)
 		ent->hurt_flash -= dt;
 
+	// Beside hurt_flash for the same reason: a clock decays with time,
+	// not with whether the thing that started it is still there. Ticked
+	// only inside the fire it would freeze on the way out, and a player
+	// who left at 0.4 remaining would still owe that 0.4 on returning
+	// an hour later.
+	if (ent->burn_cooldown > 0.0f)
+		ent->burn_cooldown -= dt;
+
 	player_motion was = ent->motion;
 	if (!ent->grounded)
 		ent->motion = PLAYER_JUMP;
