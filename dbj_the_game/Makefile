@@ -80,5 +80,12 @@ test: $(TEST_TARGET)
 
 # Leading '-': cmd.exe's del fails loudly on an already-absent file, and a
 # clean that has nothing to clean has succeeded.
+#
+# build_timestamp.inc belongs here for the same reason the binaries do: it
+# is generated. make.sh writes it before every invocation including this
+# one, so `make.sh clean` writes it and then this removes it -- without the
+# line below, the one generated file in the folder is the one that survives
+# the command whose whole job is removing generated files.
 clean:
 	-$(RM_F) $(call native,$(TARGET)) $(call native,$(TEST_TARGET))
+	-$(RM_F) $(call native,build_timestamp.inc)
