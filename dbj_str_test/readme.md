@@ -102,3 +102,7 @@ int main(void) {
     return 0;
 }
 ```
+
+---
+
+(c) 2026 by dbj@dbj.org | MIT license

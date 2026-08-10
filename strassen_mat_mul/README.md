@@ -43,4 +43,6 @@ Jump back to [Requirements](#requirements)
 
 GCC defer inspired by https://antonz.org/defer-in-c/#final-thoughts
 
-2026 by dbj@dbj.org | CC BY SA 4.0
+---
+
+(c) 2026 by dbj@dbj.org | MIT license

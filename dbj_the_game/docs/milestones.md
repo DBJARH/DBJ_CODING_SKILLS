@@ -116,3 +116,7 @@ arrives with it and brings the end condition along, and that the archer and a
 second stage follow, but that is a recommendation from
 [design.md](design.md#open-decisions) and not a decision. It stays in the ASH
 block until DBJ rules on it.
+
+---
+
+(c) 2026 by dbj@dbj.org | MIT license

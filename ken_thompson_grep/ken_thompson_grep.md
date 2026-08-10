@@ -267,3 +267,7 @@ char *s;
 Data Layout (Data > Domain): It uses simple global arrays (expbuf, linebuf) and basic primitive flags rather than complex objects (and hierarchies).
 
 Minimalist Architecture: There are no default constructors, factory classes, or structural abstractions—just straightforward procedural functions driving state and byte arrays.
+
+---
+
+(c) 2026 by dbj@dbj.org | MIT license

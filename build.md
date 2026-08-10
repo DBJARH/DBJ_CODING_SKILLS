@@ -56,3 +56,6 @@ replacement for it:
 Use F5 for step-through debugging; use `build.cmd`/`build.sh` (or plain
 `make`) for anything where the exact flags or output location matter.
 
+---
+
+(c) 2026 by dbj@dbj.org | MIT license

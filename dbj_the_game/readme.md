@@ -57,3 +57,7 @@ works, then kept as the evidence. Not a library, not a product.
 that separately-proved parts compose.
 
 **raylib** — a small C99 game library. <https://www.raylib.com/>
+
+---
+
+(c) 2026 by dbj@dbj.org | MIT license

@@ -222,3 +222,7 @@ sentence.
 **Front matter** — the YAML block delimited by `---` at the top of a markdown
 file. Machine-readable, and ignored by most renderers, which is why the
 protocol can live there without cluttering the page.
+
+---
+
+(c) 2026 by dbj@dbj.org | MIT license

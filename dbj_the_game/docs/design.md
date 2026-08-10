@@ -590,3 +590,7 @@ out a collection of records. This design is AoS; see this repo's
 
 **raylib** — a small C99 game library: window, input, 2D sprites, text, audio.
 The C-callable counterpart to SFML. <https://www.raylib.com/>
+
+---
+
+(c) 2026 by dbj@dbj.org | MIT license

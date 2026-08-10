@@ -52,3 +52,6 @@ and a typo ("Emil") in its format string.
 
 ---
 
+---
+
+(c) 2026 by dbj@dbj.org | MIT license

@@ -16,3 +16,7 @@ That's arguably backwards for a CRUD app — CRUD is normally "data first, verbs
 I'd flesh out line 6 to name this precisely rather than leave it vague ("weird," "on of"). Want me to tighten that sentence into something like:
 
 Central entities are the CRUD command parameter structs (EmailCmd.params.create/read/update/del), not the domain record (EmailRecord) itself — the design is verb-first (commands drive the union) rather than data-first (the email record drives the shape), which is backwards for a CRUD app.
+
+---
+
+(c) 2026 by dbj@dbj.org | MIT license

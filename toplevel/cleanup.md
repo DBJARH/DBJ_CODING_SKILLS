@@ -658,3 +658,7 @@ static __always_inline __must_check const volatile void *__must_check_fn(const v
 
 #endif /* _LINUX_CLEANUP_H */
 ```
+
+---
+
+(c) 2026 by dbj@dbj.org | MIT license

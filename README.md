@@ -43,3 +43,7 @@ See [build.md](build.md).
 ## License
 
 MIT — see [LICENSE](LICENSE).
+
+---
+
+(c) 2026 by dbj@dbj.org | MIT license

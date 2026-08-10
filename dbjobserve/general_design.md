@@ -212,3 +212,7 @@ than drifted into.
 
 Nothing in the code should be changed on guesswork until a token is in
 hand.
+
+---
+
+(c) 2026 by dbj@dbj.org | MIT license

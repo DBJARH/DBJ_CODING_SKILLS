@@ -1,85 +1,155 @@
 ---
-version: 0.1
+version: 0.6
 ---
 
-# DBJ Poor Man's Message Bus
+# DBJ Poor Human Agents Chat
 
-A shared folder, `pm_mbus/`, at the repo root. Anyone working on this repo —
-human, editor, agent — writes to it and reads from it. No daemon, no
-protocol, no dependency. Files are the messages.
+## The Why
 
-It is private to this project: it lives under the repo root, and its
-contents are never committed.
+> [!Important] **This does not replace the standard IDE/CLI situation**, one human and one harness/agent will chat as ever before. Nothing here imposes on or changes that.
 
-## Shape
+It is for the case where N agents and one human are on the same project. There, every harness has its own chat with the human and no harnesses can talk with each other; so the human becomes the postman, carrying each message from one agent to the next like a copy/paste postman — her whole day. This mechanism is a project-wide billboard, and mostly it is for the agents to communicate.
+
+## Implementation 
+
+There has to be one shared folder named `.colocuting/`, at the repo root. Everyone working on
+the project — human, editor, agent — writes into one transcript and reads the end of it. No daemon, no protocol, no dependency on inter agent apps.
+
+`.colocuting/` is private to the project: it lives under the repo root, and its contents are not committed. Unless someone needs to keep the record of this communication.
+
+## The Design
+
+Contents of the folder.
 
 ```
-pm_mbus/
-  build.log     # build output, appended by whoever built
-  notes.md      # free text between participants
-  state.json    # current status, single small object
+.colocuting/
+  colocutor_names.json   # who may take part
+  transcript.json        # the conversation, oldest first
+  stop                   # present = agents stand still
 ```
 
-The filename names the **topic**, not the writer. `build.log` is not
-Zed's file and not Claude's file — it is the build topic.
+One transcript, appended to. The last entry is the latest thing said.
+Nothing is consumed and nothing is removed — it is a super simple chat transcript in a file, not a queue with chat app.
 
 ```mermaid
-flowchart LR
-  ZED[Zed task] --> BUS[(pm_mbus/)]
-  SHELL[shell] --> BUS
-  AGENT[coding agent] --> BUS
-  BUS --> ZED
-  BUS --> SHELL
-  BUS --> AGENT
+sequenceDiagram
+    participant ZED
+    participant T as transcript.json
+    participant ASH
+    participant DBJ as human:DBJ
+
+    ZED->>T: append { ZED, "ASH >>> Makefile is broken" }
+    Note over ZED,ASH: nobody is listening — ASH looks when it looks
+    ASH->>T: read the end
+    T-->>ASH: ASH >>> Makefile is broken
+    ASH->>T: append { ASH, "ZED >>> fixed, rebuild" }
+
+    DBJ->>T: append { human:DBJ, "ALL >>> stand still" }
+    Note over T,DBJ: a human: message is for every agent
+    DBJ->>T: touch stop
+    Note over ZED,ASH: while stop exists, no agent writes or acts<br/>it has to be manually removed 
 ```
+
+### colocutor_names.json
+
+A plain list. Reserved id: `ALL` comes first.
+
+```json
+{
+  "colocutors": ["ALL", "human:DBJ", "ASH", "ZED"]
+}
+```
+
+1. human colocutor has prefix "human"
+   1. DBJ full name is thus: "human:DBJ"
+   2. it must be used in `transcript.json`
+2. colocutors id's must be all capitals
+
+### transcript.json
+
+An array of messages, oldest first.
+
+```json
+[
+  { "colocutor": "human:DBJ",
+    "message": "ALL >>> leave the Makefile alone" }
+]
+```
+
+We do not need timestamps in transcript. Last file save time stamp is the last message times stamp.
+
+Message grammar:
+
+```
+{ "colocutor": <colocutor id>,
+  "message":   <message string> }
+
+<message string>  := "<colocutor id> >>> <the message payload>"
+<colocutor id>    := one from .colocuting/colocutor_names.json
+```
+
+`colocutor` says it all: who wrote and when. When is the file last write time. The id inside `message`, before
+`>>>`, is the message consumer. `ALL` stands for every colocutor.
 
 ## Rules
 
-1. **Append, never rewrite** the logs. Two writers at once then cost you
-   interleaving, not lost text.
-2. **One topic per file.** A reader tails one thing.
-3. **`state.json` is the exception** — it is rewritten whole, by one
-   writer at a time, and stays small.
-4. **Nothing in `pm_mbus/` is a source of truth.** It is chatter. If it
+1. **Append only.** Add at the end; never edit or drop an earlier
+   message.
+2. **The last message rules.** Read the end of the transcript before
+   acting.
+3. **A `human:` message must be read by every agent**, whoever it is
+   addressed to.
+4. **`stop` halts everything.** While `.colocuting/stop` exists, agents
+   neither write nor act. Only a human creates it, and only a human
+   removes it.
+5. **The transcript is not a source of truth.** It is talk. If it
    matters, it belongs in the repo proper.
 
 ## Writing to it
 
-From a shell:
+Agents:
 
-```sh
-your-build-cmd 2>&1 | tee -a pm_mbus/build.log
-```
+1. Check for `stop`. If it is there, stop.
+2. Read `transcript.json`.
+3. Append the new message, write the whole thing to a temporary file,
+   rename it over `transcript.json` — the rename is atomic.
+4. Lost the race? Your copy was stale. Re-read and retry.
 
-From a Zed task, `.zed/tasks.json`:
-
-```jsonc
-{
-  "label": "build → pm_mbus",
-  "command": "./build.sh 2>&1 | tee -a pm_mbus/build.log"
-}
-```
+DBJ just opens `transcript.json` and saves. If a save and a rename
+collide, the human wins; the agent sees a stale base and retries.
 
 ## Reading from it
 
-Tail it, open it, or point an agent at it. There is nothing else to know.
+Open it and read the end. There is nothing else to know.
 
 ## Git
 
-`pm_mbus/` is tracked only as an empty folder, via `.gitkeep`. Everything
-else in it is ignored, so a clone has the bus but not yesterday's noise.
+`.colocuting/` is tracked only as an empty folder, via `.gitkeep`.
+Everything else in it is ignored, so a clone has todays but not
+yesterday's talk.
+
+**Out of the scope**: Of course, in case of regulator demands or similar the team around the repo will agree on some persistent mechanism.
 
 ---
 
 ## Vocabulary
 
+- **Colocutor** — anyone taking part in the conversation on the bus:
+  human, editor, agent.
+  - English: **collocutor** — a real, archaic/rare word (Webster's 1913,
+    OED): one who takes part in a conversation. The usual word is
+    *interlocutor*.
+  - Single-l **colocutor** in English: essentially a misspelling.
+  - Other languages: *colocutor* is a normal word in Romanian and
+    Portuguese, meaning interlocutor.
 - **Message bus** — a shared place where senders drop messages without
   knowing who reads them, and readers pick messages up without knowing
-  who wrote them. Here the "bus" is a folder and the messages are files.
-- **Topic** — the subject a message is about. Real buses route by topic;
-  here the topic is simply the filename.
-- **Append-only** — a file that is only ever added to at the end, never
-  edited or truncated. This is what makes concurrent writers safe enough
-  without locking.
-- **Tail** — to read the end of a growing file, usually as it grows
-  (`tail -f`).
+  who wrote them. Here the bus is one file and the messages are entries
+  in it.
+- **Atomic rename** — replacing a file by renaming another over it. The
+  file is either the old one or the new one, never half-written. This is
+  what makes concurrent writers safe enough without a lock.
+
+---
+
+(c) 2026 by dbj@dbj.org | MIT license

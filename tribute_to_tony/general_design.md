@@ -202,3 +202,7 @@ sequenceDiagram
 ## Note on Multi Threading
 
 Currently the design and code do not work in presence of multiple threads. That will be relatively straightforward to solve. We will use a single light mutex to be reachable from MailStorage public API and lock on entry unlock on leaving pattern. For that to be simple and resilient we will use the mandated compiler (GCC 15+) `defer` statement.
+
+---
+
+(c) 2026 by dbj@dbj.org | MIT license

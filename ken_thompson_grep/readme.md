@@ -380,4 +380,4 @@ opcode without handling it is then a compile error under `-Wswitch
 
 ---
 
-2026 by dbj@dbj.org | CC BY SA 4.0
+(c) 2026 by dbj@dbj.org | MIT license

@@ -46,3 +46,7 @@ unions with exhaustive `switch`, etc.) and the working conventions
 that apply across every folder. Design before code: work out the
 approach and check it against the relevant folder's requirements/design
 docs before editing — see CLAUDE.md's "Primary objective" section.
+
+---
+
+(c) 2026 by dbj@dbj.org | MIT license

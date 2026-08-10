@@ -311,3 +311,7 @@ transitive link line. Not used here: both raylib halves are vendored, so GCC
 **Vendoring** — committing a third-party binary or source into the repo
 instead of depending on it being installed. Costs git history, buys a clone
 that builds.
+
+---
+
+(c) 2026 by dbj@dbj.org | MIT license

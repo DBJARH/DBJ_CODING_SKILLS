@@ -223,3 +223,7 @@ stateful server would still be send-text-and-wait.
 | Remote | one stateless text call, re-entered each iteration |
 
 The agent is the local program. The LLM is the function it calls.
+
+---
+
+(c) 2026 by dbj@dbj.org | MIT license

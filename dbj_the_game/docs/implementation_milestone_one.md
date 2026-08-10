@@ -190,3 +190,7 @@ decided in code.
 
 Three items now wait on DBJ: the knife window, `player_dead`, and whether
 `SPIKE` and `FIRE` are two things or one.
+
+---
+
+(c) 2026 by dbj@dbj.org | MIT license

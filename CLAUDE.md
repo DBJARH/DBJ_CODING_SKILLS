@@ -97,3 +97,7 @@ version: 0.1
 - and so on by the same pattern
 
 SHOULD, not MUST: skip it where this repo forbids front matter, and where front matter already exists just add the `version` key without disturbing the rest.
+
+---
+
+(c) 2026 by dbj@dbj.org | MIT license
