@@ -37,6 +37,9 @@ itself is specified in [dbj_chamber.md](dbj_chamber.md).
 <details id="DBJ_notes" markdown="1">
 <summary><b>DBJ</b></summary>
 
+[open] Until milestone_3 all development will have to happen in branches spawned from MIlestone_2 branch
+
+[open] I want the  [assets issue ](#1-assets-must-live-next-to-the-exe) implemented first
 
 </details>
 
@@ -58,65 +61,47 @@ itself is specified in [dbj_chamber.md](dbj_chamber.md).
 
 ---
 
-## Contents
+> Contents
 
-- [dbj\_the\_game — milestone two chamber](#dbj_the_game--milestone-two-chamber)
-  - [Discussion](#discussion)
-  - [Contents](#contents)
-  - [The plan](#the-plan)
-  - [Verdict](#verdict)
-  - [What holds](#what-holds)
-  - [Defects](#defects)
-  - [The suite](#the-suite)
-  - [Remediations](#remediations)
-  - [Rulings](#rulings)
+## The list of issues to be implemented in milestone_2
 
-## The plan
+### 1. Assets must live next to the exe
 
-`reap()` sets `world.player_dead` and nothing reads it. This rung is the game
-noticing. Four pieces, in landing order:
+main.c:42 opens assets/castle.txt relative to wherever you started it.
+dbj_the_game/ is the only directory where that path resolves. So build has to
+copy the assets folder relative to where exe was built.
 
-1. **`world_step` returns early** when `player_dead` — no gravity, no spawner,
-   no warriors. The last frame stays on screen behind the dialogue.
-2. **`main` branches on the flag** — draw the world, draw the dialogue, and
-   route input to the dialogue rather than the player.
-3. **The dialogue**, two buttons, in its own `dialogues.h` / `dialogues.c` —
-   ruled: dialogues do not go in `draw.c`, and this is where every later one
-   lands too. It needs raylib, so it sits at the same level as `draw.c`, never
-   below it. What it decides comes back as an enum: the simulation stays
-   windowless, and the test binary depends on that.
-4. **Restart and Exit.** Exit leaves the loop; Restart reloads the map into a
-   fresh `world w = {0}`.
+### 2. Death freezes the simulation
+
+**`world_step` returns early** when `player_dead` — no gravity, no spawner,
+no warriors. The last frame stays on screen behind the dialogue.
+
+### 3. The loop switches modes on death
+
+**`main` branches on the flag** — draw the world, draw the dialogue, and
+route input to the dialogue rather than the player.
+
+### 4. Dialogues get their own translation unit
+
+**The dialogue**, two buttons, in its own `dialogues.h` / `dialogues.c` —
+ruled: dialogues do not go in `draw.c`, and this is where every later one
+lands too. It needs raylib, so it sits at the same level as `draw.c`, never
+below it. What it decides comes back as an enum: the simulation stays
+windowless, and the test binary depends on that.
+
+### 5. Restart or Exit on Death
+
+**Restart and Exit.** Exit leaves the loop; Restart reloads the map into a
+fresh `world w = {0}`.
 
 Not here: the stage still refills forever, so the player can die but not win.
 
-### Open
+### 6. Winability
 
 [design.md](design.md#milestone-two) says milestone two must be
 *winnable*. A death dialogue ends the game; it does not let the player finish
 it. One ruling, two readings.
 
-## Verdict
-
-
-## What holds
-
-
-## Defects
-
-
-## The suite
-
-## Remediations
-
-
-<a id="rulings"></a>
-
-## Rulings
-
-
-| Question | Ruling | Whose |
-|---|---|---|
 
 ---
 
