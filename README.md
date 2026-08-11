@@ -23,6 +23,11 @@ Small, self-contained C23 proof-of-concepts. Each folder stands alone.
   inifile, libcurl, ubenchtest.
 - [builds/](builds/) — build output.
 
+Not a POC, but kept here for lack of a better home:
+
+- [claude_permissions_almanah/](claude_permissions_almanah/) — reusable
+  Claude Code permission profiles and settings, with instructions.
+
 ## Why a game is in here
 
 Every other folder proves one idea, in one file, on its own terms.
