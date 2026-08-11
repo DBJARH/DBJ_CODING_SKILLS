@@ -3,49 +3,7 @@ version: 0.1
 description: Transcript, condensed. DBJ questions, Claude answers, DBJ corrects.
 ---
 
-# Physical partitioning diagram
 
-
-
-```mermaid
-block-beta
-  columns 3
-
-  dbj(("DBJ"))
-  space
-  space
-
-  block:local:2
-    columns 1
-    localTitle["Local machine (Windows)"]
-    block:exe
-      columns 1
-      exeTitle["claude.exe — single native binary"]
-      block:bun
-        columns 1
-        bunTitle["Bun v1.4.0 (JavaScriptCore)"]
-        harness["Harness — TypeScript, bundled to JS"]
-      end
-    end
-    tools["Files · Shell · Git"]
-  end
-
-  block:remote:1
-    columns 1
-    remoteTitle["Anthropic, remote"]
-    llm["Claude LLM — stateless"]
-  end
-
-  dbj --> harness
-  harness --> tools
-  harness -- "HTTPS POST /v1/messages" --> llm
-
-  style dbj fill:#fff,stroke:#333
-  style localTitle fill:none,stroke:none
-  style exeTitle fill:none,stroke:none
-  style bunTitle fill:none,stroke:none
-  style remoteTitle fill:none,stroke:none
-```
 # Core Communication Concepts
 
 >
@@ -56,7 +14,6 @@ block-beta
 > &nbsp;
 > 
 
-- [Physical partitioning diagram](#physical-partitioning-diagram)
 - [Core Communication Concepts](#core-communication-concepts)
   - [DBJ: are you claude llm client app?](#dbj-are-you-claude-llm-client-app)
   - [DBJ: calling that just "claude" is slightly misleading](#dbj-calling-that-just-claude-is-slightly-misleading)
