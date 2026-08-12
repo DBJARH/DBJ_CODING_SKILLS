@@ -37,9 +37,11 @@ itself is specified in [dbj_chamber.md](dbj_chamber.md).
 <details id="DBJ_notes" markdown="1">
 <summary><b>DBJ</b></summary>
 
-[open] Until milestone_3 all development will have to happen in branches spawned from MIlestone_2 branch
+[open] 
 
-[open] I want the  [assets issue ](#1-assets-must-live-next-to-the-exe) implemented first.  The main objection: issue 1 names one path, but there are six — main.c:42 plus five LoadTexture calls in draw.c:20-24, and those five fail silently. And its stated remedy (copy assets next to the exe) doesn't achieve its stated goal, since the paths stay relative to the working directory either way. So I want `dbj_configurator` to encapsulate the solution in a single `struct` and then called from where it is needed. and do that in `dbj_configurator.h`/`dbj_configurator.c` ..you knpw the drill: factory method to make it, then function pointers to functions implementing it in `dbj_configurator.c`
+[settled] Until milestone_3 all development will have to happen in branches spawned from MIlestone_2 branch
+
+[settled] I want the  [assets issue ](#1-assets-must-live-next-to-the-exe) implemented first.  The main objection: issue 1 names one path, but there are six — main.c:42 plus five LoadTexture calls in draw.c:20-24, and those five fail silently. And its stated remedy (copy assets next to the exe) doesn't achieve its stated goal, since the paths stay relative to the working directory either way. So I want `dbj_configurator` to encapsulate the solution in a single `struct` and then called from where it is needed. and do that in `dbj_configurator.h`/`dbj_configurator.c` ..you knpw the drill: factory method to make it, then function pointers to functions implementing it in `dbj_configurator.c`
 
 </details>
 
@@ -56,7 +58,7 @@ itself is specified in [dbj_chamber.md](dbj_chamber.md).
 <details id="ZED_notes" markdown="1">
 <summary><b>ZED</b></summary>
 
-### Design — issue 1, as ruled
+### Design — [issue 1](#issue-1), as ruled and now shipped
 
 Two structs, two file pairs, both in `dbj_the_game/`. `dbj_platform` knows the
 OS; `dbj_configurator` knows the layout and holds a platform. Nothing above
@@ -122,86 +124,58 @@ next reader does not rediscover them:
 
 - `dbj_str_512_create` takes `const unsigned char src[static 512]` — a promise
   of 512 readable bytes, which a string literal does not keep (`-Wstringop-overread`,
-  fatal under `-Werror`). Paths are therefore built with `snprintf` into a real
-  `unsigned char buf[512]` and that array is what `_create` receives. Same trap
+  fatal under `-Werror`). Same trap
   [dbj_result.h](../../toplevel/dbj_result.h) already documents at its line 46.
+  Sidestepped rather than worked around: paths are `snprintf`-ed directly into
+  the returned object's own `.data`, so `_create` is never called, no size is
+  written twice, and the value is built where it is returned from.
 - `snprintf`'s return value is the length it *wanted*; `>= 512` means truncation,
   which becomes ERR naming the leaf that did not fit rather than a silently
   shortened path.
 - Storage is `unsigned char`, raylib and `fopen` want `const char *`, so each of
   the six call sites casts. Accepted as temporary — revisited once it compiles.
 
-[open] Issue 1 is stated as one path, but there are six. `main.c:42` loads the
-map; `draw.c:20-24` loads five textures. The map failure is loud (`return 1`),
-the texture failures are silent — raylib logs a warning and hands back a zeroed
-`Texture2D`, so a wrong working directory gives you a running game drawing
-nothing. Whatever fixes this must fix all six, or the fix looks like it worked.
+[settled] [issue 1](#issue-1) was stated as one path, but there were six —
+`main.c` for the map, `draw.c` for five textures, the latter failing silently.
+All six now resolve through `dbj_configurator`, and a failed texture is a
+message rather than an invisible sprite. Verified from `builds/`, the directory
+where it used to fail; 9/9 test suites still pass.
 
-[open] Issue 1's title says "next to the exe" but its body says "copy the assets
-folder relative to where exe was built". Those are two different remedies. Copying
-assets into `$(BUILD_DIR)` still leaves the paths relative to the *working
-directory*, so `builds\dbj_the_game.exe` from the repo root still fails — you've
-moved the files and changed nothing. Making it work from anywhere needs the
-program to resolve paths against its own image location, not the build to
-duplicate files. Copying only helps if you also always `cd` into `builds` first,
-which is the same constraint you have now with a second copy of the assets.
+[settled] The remedy in [issue 1](#issue-1) as first written — copy assets next
+to the exe — would not have reached its own goal, since the paths stayed
+relative to the working directory either way. Ruled: the program resolves
+against its own image location, *and* the build copies. Both, not either.
 
-[open] `make run` already works and the Makefile says why (line 73). So the real
-question in issue 1 is not "is it broken" but "should the exe be runnable from
-anywhere". That is a ruling, not a bug fix, and it is DBJ's.
+[open] One deviation from core principle 9, forced by the language:
+`assets_path` takes `dbj_configurator const *`, not `cfg[static 1]`. A struct
+member cannot name an array of the struct being defined — an array needs a
+complete element type. Every free function keeps the array form. Recorded here
+because it is the kind of exception that otherwise gets "fixed" back into a
+build error.
 
 [fix] Front matter names `spec: dbj_chamber.md` and the Discussion section links
 to it. No such file exists in `docs/`. Either it is unwritten or it is elsewhere.
 
-[open] Issue 6 "Winability" restates the milestone contradiction but sits in the
-issue list as if it were implementable work. It is not — it is the open question
-that decides whether issues 2-5 are the whole milestone or half of it. The empty
-ruling table that used to carry it is gone.
+[open] [issue 6](#issue-6) is not implementable work sitting among five tasks —
+it is the question that sizes the milestone. Answered one way, issues 2-5 are
+all of it; answered the other, they are half.
 
 </details>
 
 ---
 
-> Contents
-
 ## The list of issues to be implemented in milestone_2
 
-### 1. Assets must live next to the exe
+The only list. Cite a row from anywhere in this file as `[issue N](#issue-N)`.
 
-main.c:42 opens assets/castle.txt relative to wherever you started it.
-dbj_the_game/ is the only directory where that path resolves. So build has to
-copy the assets folder relative to where exe was built.
-
-### 2. Death freezes the simulation
-
-**`world_step` returns early** when `player_dead` — no gravity, no spawner,
-no warriors. The last frame stays on screen behind the dialogue.
-
-### 3. The loop switches modes on death
-
-**`main` branches on the flag** — draw the world, draw the dialogue, and
-route input to the dialogue rather than the player.
-
-### 4. Dialogues get their own translation unit
-
-**The dialogue**, two buttons, in its own `dialogues.h` / `dialogues.c` —
-ruled: dialogues do not go in `draw.c`, and this is where every later one
-lands too. It needs raylib, so it sits at the same level as `draw.c`, never
-below it. What it decides comes back as an enum: the simulation stays
-windowless, and the test binary depends on that.
-
-### 5. Restart or Exit on Death
-
-**Restart and Exit.** Exit leaves the loop; Restart reloads the map into a
-fresh `world w = {0}`.
-
-Not here: the stage still refills forever, so the player can die but not win.
-
-### 6. Winability
-
-[design.md](design.md#milestone-two) says milestone two must be
-*winnable*. A death dialogue ends the game; it does not let the player finish
-it. One ruling, two readings.
+| Status | Issue |
+|---|---|
+| [settled] | <a id="issue-1"></a> **1 — Assets resolved beside the exe.** Six paths were relative to the working directory: the map in `main.c`, five textures in `draw.c`. `dbj_platform` holds the OS knowledge (one `#ifdef`), `dbj_configurator` holds the layout and answers with `dbj_str_512Result` by value. `draw_load_art` now checks texture id 0, so the five silent failures speak. Makefile copies `assets/` into the build directory. |
+| [open] | <a id="issue-2"></a> **2 — Death freezes the simulation.** `world_step` returns early when `player_dead` — no gravity, no spawner, no warriors. The last frame stays on screen behind the dialogue. |
+| [open] | <a id="issue-3"></a> **3 — The loop switches modes on death.** `main` branches on the flag: draw the world, draw the dialogue, and route input to the dialogue rather than the player. |
+| [open] | <a id="issue-4"></a> **4 — Dialogues get their own translation unit.** Two buttons, in its own `dialogues.h` / `dialogues.c` — ruled: dialogues do not go in `draw.c`, and this is where every later one lands too. It needs raylib, so it sits at the same level as `draw.c`, never below it. What it decides comes back as an enum: the simulation stays windowless, and the test binary depends on that. |
+| [open] | <a id="issue-5"></a> **5 — Restart or Exit on death.** Exit leaves the loop; Restart reloads the map into a fresh `world w = {0}`. Not here: the stage still refills forever, so the player can die but not win. |
+| [open] | <a id="issue-6"></a> **6 — Winnability.** [design.md](design.md#milestone-two) says milestone two must be *winnable*. A death dialogue ends the game; it does not let the player finish it. One ruling, two readings — and it decides whether issues 2-5 are the whole milestone or half of it. |
 
 
 ---
