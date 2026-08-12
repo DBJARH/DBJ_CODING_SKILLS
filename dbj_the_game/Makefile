@@ -3,11 +3,13 @@ CFLAGS    := -std=c23 -Wall -Wextra -Wswitch -Werror -I ../toplevel
 # output goes; falls back to ../builds (repo root) if unset.
 BUILD_DIR := $(if $(DBJ_BUILDS),$(DBJ_BUILDS),../builds)
 
-SOURCES   := main.c world.c entity.c physics.c map.c input.c draw.c
+SOURCES   := main.c world.c entity.c physics.c map.c input.c draw.c \
+             dbj_configurator.c dbj_platform.c
 # build_timestamp.inc is deliberately absent from this list. It is written
 # by make.sh before every build, so naming it here would relink the test
 # binary too -- and the simulation has no version string in it.
 HEADERS   := main.h world.h entity.h physics.h map.h input.h draw.h \
+             dbj_configurator.h dbj_platform.h \
              milestone_iteration.inc
 
 # The simulation, with nothing that opens a window. The test binary links
@@ -38,6 +40,9 @@ MKDIR       := if not exist $(subst /,\,$(BUILD_DIR)) mkdir $(subst /,\,$(BUILD_
 # lines with CreateProcess, which finds no del.exe to run.
 RM_F        := cmd /c del /q
 native       = $(subst /,\,$1)
+# xcopy needs the /i to treat a missing destination as a directory rather
+# than asking, and recipes cannot answer questions.
+COPY_ASSETS := cmd /c xcopy /e /i /y /q assets $(subst /,\,$(BUILD_DIR))\assets
 RAYLIB_LIBS := $(RAYLIB_DIR)/win64/libraylib.a -lopengl32 -lgdi32 -lwinmm
 else
 CC          := gcc-15
@@ -45,15 +50,22 @@ EXE         :=
 MKDIR       := mkdir -p $(BUILD_DIR)
 RM_F        := rm -f
 native       = $1
+COPY_ASSETS := cp -r assets $(BUILD_DIR)/
 RAYLIB_LIBS := $(RAYLIB_DIR)/linux64/libraylib.a -lGL -lm -lpthread -ldl -lrt -lX11
 endif
 
 TARGET      := $(BUILD_DIR)/dbj_the_game$(EXE)
 TEST_TARGET := $(BUILD_DIR)/dbj_the_game_test$(EXE)
 
-.PHONY: all run test clean
+.PHONY: all run test clean assets
 
-all: $(TARGET)
+all: $(TARGET) assets
+
+# The program resolves assets against its own location, so they have to be
+# there. Unconditional on purpose: an edited map or a redrawn sprite is not
+# a dependency make can see through a directory.
+assets: | $(BUILD_DIR)
+	$(COPY_ASSETS)
 
 $(BUILD_DIR):
 	$(MKDIR)
@@ -70,7 +82,8 @@ $(TARGET): $(SOURCES) $(HEADERS) $(wildcard build_timestamp.inc) \
 $(TEST_TARGET): $(TEST_SOURCES) $(HEADERS) | $(BUILD_DIR)
 	$(CC) $(CFLAGS) $(TAU_CFLAGS) -o $(TEST_TARGET) $(TEST_SOURCES)
 
-# Assets are resolved relative to the working directory, so run from here.
+# Assets sit beside the binary, so the working directory no longer matters:
+# this runs the same from here, from the repo root, or from anywhere else.
 run: all
 	$(TARGET)
 

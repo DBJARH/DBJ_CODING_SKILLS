@@ -10,6 +10,7 @@
 #include <stdio.h>
 #include <string.h>
 
+#include "dbj_configurator.h"
 #include "draw.h"
 #include "input.h"
 #include "main.h"
@@ -37,10 +38,22 @@ int main(int argc, char *argv[static argc + 1])
 
 	dbj_clintro("DBJ_THE_GAME", DBJ_THE_GAME_VERSION);
 
+	// Assets live beside the executable, not beside the caller's shell.
+	// Every path below is resolved through this one struct.
+	dbj_configurator cfg = dbj_configurator_make();
+
+	dbj_str_512Result map_path = cfg.assets_path(&cfg, "castle.txt");
+	if (map_path.tag == DBJ_RESULT_ERR) {
+		TraceLog(LOG_ERROR, "%s: %s", map_path.dbj_str_512_ERR.location,
+		         map_path.dbj_str_512_ERR.message);
+		return 1;
+	}
+	char const *map_file = (char const *)map_path.dbj_str_512_OK.my_value.data;
+
 	// A zeroed world is a valid empty world -- every count is 0.
 	world game = {0};
-	if (!map_load(&game, "assets/castle.txt")) {
-		TraceLog(LOG_ERROR, "map load failed: assets/castle.txt");
+	if (!map_load(&game, map_file)) {
+		TraceLog(LOG_ERROR, "map load failed: %s", map_file);
 		return 1;
 	}
 	if (game.player_count == 0) {
@@ -56,7 +69,7 @@ int main(int argc, char *argv[static argc + 1])
 	// and their handles must not outlive it either. Defers run in reverse,
 	// so declaring this one second unloads the art before the window goes:
 	// the ordering is the language's to keep, not the reader's.
-	draw_load_art();
+	if (!draw_load_art(&cfg)) return 1;
 	defer { draw_unload_art(); }
 
 	while (!WindowShouldClose()) {

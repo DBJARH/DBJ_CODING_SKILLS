@@ -15,13 +15,35 @@ static Texture2D tex_knife;
 static Texture2D tex_obstacle;
 static Texture2D tex_fire;
 
-void draw_load_art(void)
+// One sheet, resolved and loaded. A texture whose id is 0 came from a file
+// raylib could not read -- the loudest raylib gets about it is a log line,
+// so the id is what this checks.
+static bool load_sheet(dbj_configurator const cfg[static 1], char const *leaf,
+                       Texture2D out[static 1])
 {
-	tex_player   = LoadTexture("assets/tileset_player.png");
-	tex_warrior  = LoadTexture("assets/warrior.png");
-	tex_knife    = LoadTexture("assets/knife.png");
-	tex_obstacle = LoadTexture("assets/obstacles.png");
-	tex_fire     = LoadTexture("assets/fire.png");
+	dbj_str_512Result path = cfg->assets_path(cfg, leaf);
+	if (path.tag == DBJ_RESULT_ERR) {
+		TraceLog(LOG_ERROR, "%s: %s", path.dbj_str_512_ERR.location,
+		         path.dbj_str_512_ERR.message);
+		return false;
+	}
+
+	char const *file = (char const *)path.dbj_str_512_OK.my_value.data;
+	*out             = LoadTexture(file);
+	if (out->id == 0) {
+		TraceLog(LOG_ERROR, "texture load failed: %s", file);
+		return false;
+	}
+	return true;
+}
+
+bool draw_load_art(dbj_configurator const cfg[static 1])
+{
+	return load_sheet(cfg, "tileset_player.png", &tex_player)
+	    && load_sheet(cfg, "warrior.png", &tex_warrior)
+	    && load_sheet(cfg, "knife.png", &tex_knife)
+	    && load_sheet(cfg, "obstacles.png", &tex_obstacle)
+	    && load_sheet(cfg, "fire.png", &tex_fire);
 }
 
 void draw_unload_art(void)
