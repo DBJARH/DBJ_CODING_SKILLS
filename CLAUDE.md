@@ -76,6 +76,13 @@ tries to mirror the code exactly has failed at being a diagram.
 
 We are enjoying clear positioning in the Info Space, thanks to the omni-presence of [DBJ Taxonomies](https://method.dbj.org/taxonomy_core.html). Thus we know where is the content in the information space. What part of the landscape it solves.
 
+## Toolchain 
+
+GCC 15.3.0 UCRT lives at `G:\mingw`, with `mingw32-make`. `PATH` and
+`DBJ_BUILDS` are user environment variables — an already-running shell will not
+see changes to them.
+
+
 ## Core coding principles
 
 These apply across the whole repo. This is the single place they are
