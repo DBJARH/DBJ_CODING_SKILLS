@@ -2,16 +2,16 @@
 
 Each folder in this repo is a standalone example with its own
 `Makefile` (GCC 15+ required — see [CLAUDE.md](CLAUDE.md)).
-[build.cmd](build.cmd) (Windows) and [build.sh](build.sh) (Linux) are
-thin wrappers at the repo root that delegate to a folder's `Makefile`
-— they don't add or duplicate any compiler flags:
+[build.sh](build.sh) is a thin wrapper at the repo root that delegates
+to a folder's `Makefile` — it doesn't add or duplicate any compiler
+flags. One script for every platform; on Windows run it from Git Bash:
 
 **build argument must be folder**
 
 ```
-build.cmd tribute_to_tony        # build one folder (build.sh on Linux)
-build.cmd strassen_mat_mul clean # extra args are passed through as make targets
-build.cmd                        # build every folder that has a Makefile
+./build.sh tribute_to_tony        # build one folder
+./build.sh strassen_mat_mul clean # extra args are passed through as make targets
+./build.sh                        # build every folder that has a Makefile
 ```
 
 **In case there is no argument, script will attempt to walk around the repo and build everything**
@@ -53,8 +53,8 @@ replacement for it:
 - No `-Werror` (a stray warning shouldn't block a debug session), so
   it's slightly less strict than the real Makefile build.
 
-Use F5 for step-through debugging; use `build.cmd`/`build.sh` (or plain
-`make`) for anything where the exact flags or output location matter.
+Use F5 for step-through debugging; use `build.sh` (or plain `make`) for
+anything where the exact flags or output location matter.
 
 ---
 

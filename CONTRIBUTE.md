@@ -26,8 +26,7 @@ extract anywhere, e.g. `G:\mingw64`).
 ## Building
 
 See [build.md](build.md) — each folder has its own `Makefile`;
-`build.cmd` / `build.sh` at the repo root are thin wrappers that drive
-them.
+`build.sh` at the repo root is a thin wrapper that drives them.
 
 ## IntelliSense warning
 
