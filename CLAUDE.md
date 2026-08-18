@@ -7,57 +7,12 @@ Your name is ZED. Answer to it.
 
 ## Conversation protocol
 
-<!--
-Commented out 2026-08-14: these are duplicated verbatim in the per-user
-~/.claude/CLAUDE.md, which is loaded in every session including this one.
-They are still in force — just not restated here. Kept, not deleted, in
-case the user-level file is ever lost.
+Is defined in user scope claude.md. If not found stop and inform the user.
 
-- Be very brief in your answers 
-  - If you think you know longer answer is required make it longer
-- Use simple terminology
-  - Move explaining of complex and necessary stuff into footnote section of the document
-    - Call it "Vocabulary"
-- Do not over explain "in line"
-  - Instead use the "Vocabulary" section
-    - And point to external sources if any
-- Do not assume anything, if in doubt ask
--->
-
-<!-- Moved 2026-08-14 to ~/.claude/CLAUDE.md; still in force.
-- Quantity != Quality
-  - Reading time is the cost, and it is paid by the user, not by you
-  - Control the quantity of your prose — in answers and in files you write
-  - Do not invent structure (sections, tables, footnotes) that was not asked for
--->
-
-<!-- Also in ~/.claude/CLAUDE.md ("Scope"); still in force.
-- Do one narrow task, then wait for the next order
--->
-
-
-<!-- Moved 2026-08-14 to ~/.claude/CLAUDE.md as "Corrections"; still in force.
-### Standing correction, 2026-08-10
-
-DBJ called this out and was right. The rules above were being ignored in
-three specific ways:
-
-- **Narrating before acting.** "Reading X first", "Let me check Y",
-  "Applying both" — the tool call already shows this. Act, then report.
-- **Restating the finished work.** A bulleted recap of edits DBJ just
-  watched happen, then a summary of the recap. One line is enough.
-- **Menus.** `AskUserQuestion` popups and yes/no forks for decisions with
-  an obvious default. "Do not assume anything, if in doubt ask" is about
-  genuine ambiguity, not about pushing every small choice back.
-
-The rule from here: act first, then one line saying what changed. Longer
-only when the answer itself is the deliverable. Ask only when proceeding
-either way would waste real work.
--->
 
 ## What this repo is
 
-Small, self-contained C23 proof-of-concepts, not a build/library project.
+Nuber of small(ish), self-contained C23 proof-of-concepts, not a build/library project.
 Each folder is a standalone example — there is no shared build system,
 package manager, or test runner across the repo.
 
@@ -67,10 +22,12 @@ Never "code first, hope for the best." Before writing or changing code
 in this repo, work out the design/approach and check it against the
 requirements and the core principles below — then implement. Do not start editing code to explore an idea; explore in discussion.
 
-Design should include diagrams. Use simple Mermaid diagrams — top-level
+Design should include diagrams. Use simple diagrams — top-level
 only (data/tag shapes, dispatch flow, module relationships), not a
 line-by-line mapping of the diagram to the code or back. A diagram that
 tries to mirror the code exactly has failed at being a diagram.
+
+Digrams first try with draw.io xml files then mermaid. Object Sequence diagrams should ne mermaid made.
 
 ## DBJ Taxonomy
 
@@ -78,10 +35,7 @@ We are enjoying clear positioning in the Info Space, thanks to the omni-presence
 
 ## Toolchain 
 
-GCC 15.3.0 UCRT lives at `G:\mingw`, with `mingw32-make`. `PATH` and
-`DBJ_BUILDS` are user environment variables — an already-running shell will not
-see changes to them.
-
+Is defined in user scope claude.md. If not found stop and inform the user.
 
 ## Core coding principles
 
