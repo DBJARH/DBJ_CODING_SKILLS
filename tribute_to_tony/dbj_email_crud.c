@@ -301,7 +301,7 @@ static void create_n(int start, int number_of_emails)
 
         EmailStorageResult r = db->CreateEmail(record);
         REQUIRE_TRUE(r.tag == EMAIL_STORAGE_OK, "CREATE failed mid-sequence");
-        g_ids[start + i] = r.ok.record.slot_id;
+        g_ids[start + i] = r.email.slot_id;
     }
     if (start + number_of_emails > g_ids_count)
         g_ids_count = start + number_of_emails;

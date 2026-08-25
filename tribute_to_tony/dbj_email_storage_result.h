@@ -14,47 +14,91 @@ typedef enum : unsigned short {
 
 typedef struct EmailStorageResult EmailStorageResult;
 
+#ifndef ERROR_RECORD_LOCATION_SIZE
+#define ERROR_RECORD_LOCATION_SIZE 512
+#endif
+
+#ifndef ERROR_RECORD_MESSAGE_SIZE
+#define ERROR_RECORD_MESSAGE_SIZE 512
+#endif
+
+/*
+ * The err arm is its own named type, not an anonymous struct inside
+ * the union, for the same reason EmailRecord is: both arms are then
+ * single values with names, which makes each factory take exactly one
+ * argument -- and that is what lets _Generic pick between them (see
+ * email_storage_result, below).
+ */
+typedef struct {
+    char location[ERROR_RECORD_LOCATION_SIZE]; /* error origin, e.g. via __func__ */
+    char message[ERROR_RECORD_MESSAGE_SIZE];
+} ErrorRecord;
+
+/*
+ * No function pointer lives in this struct, in the union or beside it
+ * -- see dbj_discriminated_union_reference_implementation.md, section
+ * "Why not embed a function pointer". Briefly: it would duplicate what
+ * tag already says (and could then disagree with it), cost every
+ * result an extra pointer, and buy back an extensibility a closed
+ * two-arm union does not want. Dispatch is the switch on tag, below.
+ */
 struct EmailStorageResult {
     EmailStorageResultTag tag;
     union {
-        struct {
-            EmailStorageResult (*make)(EmailRecord record);
-            EmailRecord record;
-        } ok;
-        struct {
-            EmailStorageResult (*make)(const char* location, const char* message);
-            char location[512]; /* error origin, e.g. via __func__ */
-            char message[512];
-        } err;
+        EmailRecord email;
+        ErrorRecord error;
     };
 };
 
 /*
- * email_storage_result_ok/email_storage_result_err are the factory
- * methods callers use to obtain an EmailStorageResult. Each also wires
- * the matching union arm's make function pointer, so a result already
- * in hand can derive another one of the same tag via ok.make / err.make.
+ * error_record is the factory for the err arm's payload. Callers who
+ * want the two-string form use it inline:
+ *
+ *     email_storage_result(error_record(__func__, "not found"))
  */
-EmailStorageResult email_storage_result_ok(EmailRecord record);
-EmailStorageResult email_storage_result_err(const char* location, const char* message);
+ErrorRecord error_record(const char* location, const char* message);
+
+/*
+ * email_storage_result_ok/email_storage_result_err are the factory
+ * methods that make an EmailStorageResult. They are the only way a
+ * result is made, so tag and the active union arm cannot fall out of
+ * step.
+ */
+EmailStorageResult email_storage_result_ok(EmailRecord email);
+EmailStorageResult email_storage_result_err(ErrorRecord error);
+
+/*
+ * Both arms are one named type each, so the compile-time type of the
+ * payload already says which arm it is -- _Generic reads that and
+ * picks the factory, so no caller ever names a tag. See section
+ * "_Generic -- the reference implementation" in
+ * dbj_discriminated_union_reference_implementation.md.
+ *
+ * A payload of any other type has no association here and fails to
+ * compile, which is the point.
+ */
+#define email_storage_result(val) _Generic((val), \
+    EmailRecord: email_storage_result_ok,         \
+    ErrorRecord: email_storage_result_err)(val)
 
 // define in exactly one translation unit (aka c file)
 #ifdef DBJ_EMAIL_STORAGE_RESULT_IMPLEMENTATION
 
 #include <stdio.h>
 
-EmailStorageResult email_storage_result_ok(EmailRecord record) {
-    return (EmailStorageResult){
-        .tag = EMAIL_STORAGE_OK,
-        .ok  = {.make = email_storage_result_ok, .record = record}};
+ErrorRecord error_record(const char* location, const char* message) {
+    ErrorRecord rec = {0};
+    snprintf(rec.location, sizeof rec.location, "%s", location);
+    snprintf(rec.message, sizeof rec.message, "%s", message);
+    return rec;
 }
 
-EmailStorageResult email_storage_result_err(const char* location, const char* message) {
-    EmailStorageResult r = {.tag = EMAIL_STORAGE_ERR,
-                             .err = {.make = email_storage_result_err}};
-    snprintf(r.err.location, sizeof r.err.location, "%s", location);
-    snprintf(r.err.message, sizeof r.err.message, "%s", message);
-    return r;
+EmailStorageResult email_storage_result_ok(EmailRecord email) {
+    return (EmailStorageResult){.tag = EMAIL_STORAGE_OK, .email = email};
+}
+
+EmailStorageResult email_storage_result_err(ErrorRecord error) {
+    return (EmailStorageResult){.tag = EMAIL_STORAGE_ERR, .error = error};
 }
 
 #endif // DBJ_EMAIL_STORAGE_RESULT_IMPLEMENTATION
@@ -73,21 +117,22 @@ EmailStorageResult email_storage_result_err(const char* location, const char* me
  *
  *     #include "dbj_email_storage_result.h"
  *
- *     EmailStorageResult r = email_storage_result_ok(some_record);
- *     EmailStorageResult e = email_storage_result_err(__func__, "not found");
+ * Make a result through the _Generic macro -- the payload's type
+ * selects the arm, so no tag is ever written by hand:
  *
- * From an existing result, call make to derive another one of the same
- * tag without naming the factory function again:
+ *     EmailStorageResult r = email_storage_result(some_record);
+ *     EmailStorageResult e = email_storage_result(
+ *                                error_record(__func__, "not found"));
  *
- *     EmailStorageResult r2 = r.ok.make(other_record);   // tag == EMAIL_STORAGE_OK
- *     EmailStorageResult e2 = e.err.make(loc, "again");  // tag == EMAIL_STORAGE_ERR
+ * The two factories are also callable directly, if naming the arm at
+ * the call site reads better there.
  *
- * Always branch on tag before touching ok/err — reading the inactive
- * arm of the union is undefined behaviour:
+ * Always branch on tag before touching email/error — reading the
+ * inactive arm of the union is undefined behaviour:
  *
  *     switch (r.tag) {
- *         case EMAIL_STORAGE_OK:  ... r.ok.record ...  break;
- *         case EMAIL_STORAGE_ERR: ... r.err.message ... break;
+ *         case EMAIL_STORAGE_OK:  ... r.email ...          break;
+ *         case EMAIL_STORAGE_ERR: ... r.error.message ...  break;
  *         // no default — -Wswitch catches a missing tag case
  *     }
  */

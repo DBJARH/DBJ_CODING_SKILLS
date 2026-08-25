@@ -49,8 +49,10 @@ In order to use this API (Interface) User has to first obtain the instance to th
 
 ## **EmailRecord**
 
-`EmailRecord` is the central, tagged type. Storage is a logical array
-of `EmailRecord`s, plus a singly-linked free list threaded through the
+`EmailRecord` is the central data type — a plain struct. (The
+discriminated union in this design is `EmailStorageResult`, below; a
+record travels inside its `ok` arm.) Storage is a logical array of
+`EmailRecord`s, plus a singly-linked free list threaded through the
 same array for slot reuse — a specialized storage for `EmailRecord`s,
 not a general one.
 
@@ -71,74 +73,100 @@ lifetimes.
   that easy to miss.
 
 
-**Synopsis**
+**Shape**
 
 ```mermaid
 classDiagram
     class EmailRecord {
-        EmailId slot_id
-        UniqueId unique_id
-        text to
-        text from
-        text subject
-        text body
+        two ids
+        message fields
     }
-    note for EmailRecord "slot_id: on the storage implementation<br>unique_id: of the instance"
+    note for EmailRecord "slot_id: where it lives, reused<br>unique_id: which record it is, never reused"
 ```
+
+Field list is in `dbj_email_record.h`.
 
 
 ## EmailStorageResult
 
-Standard return type is: `EmailStorageResult`. It is a tagged union, returning the `EmailRecord` or an error
+Standard return type is: `EmailStorageResult`. It is a discriminated
+union, carrying either the `EmailRecord` or an error.
 
-**Synopsis**
+**Shape**
 
 ```mermaid
 classDiagram
     class EmailStorageResult {
         Tag tag
     }
-    class ok {
-        EmailRecord record
+    class EmailRecord {
+        the record
     }
-    class err {
-        text location
-        text message
+    class ErrorRecord {
+        where and what
     }
-    EmailStorageResult --> ok : tag == OK
-    EmailStorageResult --> err : tag == ERR
-    note for EmailStorageResult "tagged union <br> discriminated by Tag"
+    EmailStorageResult --> EmailRecord : tag == OK
+    EmailStorageResult --> ErrorRecord : tag == ERR
+    note for EmailStorageResult "the tag says which arm is live<br>callers switch on it, no default case"
 ```
+
+Each arm is a named type of its own — `EmailRecord` and `ErrorRecord` —
+rather than a struct written inline in the union. That is what makes
+the construction below possible.
+
+**Construction is compile-time.** Because each arm is one named type,
+each factory takes exactly one argument, and `_Generic` can pick
+between them on the payload's type:
+
+```c
+EmailStorageResult r = email_storage_result(some_record);
+EmailStorageResult e = email_storage_result(error_record(__func__, "not found"));
+```
+
+No caller writes a tag. The payload's type determines the arm *and* the
+tag together, so the two cannot disagree; a payload of any other type
+fails to compile.
+
+This follows
+[the reference implementation](dbj_discriminated_union_reference_implementation.md)
+throughout — see its sections "Why not embed a function pointer" (no
+pointer is carried in the union or beside it) and "`_Generic` — the
+reference implementation". Reading stays a runtime `switch` on `tag`
+with no `default`, so `-Wswitch -Werror` fails the build if a tag is
+ever added and left unhandled.
 
 **Future improvements**. Notice we say "improvements" not "extensions".
 
-- user configurable size of `location` and `message` char arrays, on the `err` struct.
-  - that also allows for using char array parameters with size hint
+- ~~user configurable size of `location` and `message` char arrays~~ —
+  done: `ERROR_RECORD_LOCATION_SIZE` / `ERROR_RECORD_MESSAGE_SIZE` on
+  `ErrorRecord`.
 - both `location` and `message` in a json format
   - Discuss: why not just one json formatted `payload`?
 
 ## EmailStorage
 
-The core methods of the `EmailStorage` interface.
+The four CRUD verbs are the whole interface. Every one of them returns
+an `EmailStorageResult`; `Read`/`Delete` take a `slot_id`,
+`Create`/`Update` take a record.
 
-**Synopsis**
+**Shape**
 
 ```mermaid
 classDiagram
     class EmailStorage {
-        EmailRecord[] records
-        bool[] occupied
-        size_t[] next_free_slot
-        size_t free_list_head
-        size_t high_water_mark
-        size_t live_count
-        CreateEmail(record) EmailStorageResult
-        ReadEmail(slot_id) EmailStorageResult
-        UpdateEmail(record) EmailStorageResult
-        DeleteEmail(slot_id) EmailStorageResult
+        the records, by slot
+        which slots are free
+        CreateEmail() EmailStorageResult
+        ReadEmail() EmailStorageResult
+        UpdateEmail() EmailStorageResult
+        DeleteEmail() EmailStorageResult
     }
-    note for EmailStorage "records: the backing array<br>occupied[]: is this slot live right now<br>next_free_slot[]: free-list links, by index<br>free_list_head: index of most recently freed slot (LIFO list head)<br>high_water_mark: max slot index ever occupied<br>live_count: records currently in storage"
+    note for EmailStorage "fixed capacity, no allocation<br>slot bookkeeping is private to the implementation"
 ```
+
+Storage is one fixed-size array of records, with occupancy and the free
+list held alongside it. The bookkeeping fields are an implementation
+matter — see `dbj_email_storage.h`.
 
 ### Free Slots concept
 
@@ -146,58 +174,30 @@ Storage is a fixed-capacity array of `EmailRecord`s (see the `slot_id`
 discussion under EmailRecord above for why a deleted slot's index is
 reused rather than retired).
 
-**Operation: Create**
+**Slot lifecycle**
+
+A slot is either free or occupied, and the free ones form a stack:
 
 ```mermaid
-%%{init: {'theme':'base', 'themeVariables': {'background':'#ffffff'}}}%%
-sequenceDiagram
-    participant Storage as EmailStorage
-    participant Records_Array as records[]
-    participant Bools_Array as occupied[]
-    participant Free_Slots_Array as next_free_slot[]
-    participant free_list_var as free_list_head
-    participant high_wm_var as high_water_mark
-    participant live_count_var as live_count
-
-    Note over Storage: CreateEmail receives a newly<br>created email record as parameter
-
-    alt IF a previously-deleted slot is waiting to be reused
-        Storage->>free_list_var: take the slot at the front of the list --<br>use it as the slot for this new record
-        Storage->>Free_Slots_Array: find out which slot, if any,<br>was queued up behind it
-        Storage->>free_list_var: make that slot the new front of the list<br>(so it is offered next time)
-    else IF no deleted slot is waiting -- storage still has<br>room it has never used before
-        Storage->>high_wm_var: take the next never-used slot --<br>use it as the slot for this new record
-        Storage->>high_wm_var: remember that this slot has now been used,<br>so it will not be handed out again this way
-    end
-    Storage->>Records_Array: write the new record into that slot<br>(its slot_id and unique_id are set here)
-    Storage->>Bools_Array: mark that slot as occupied
-    Storage->>live_count_var: add one to the count of live records
+stateDiagram-v2
+    [*] --> Never_used
+    Never_used --> Occupied : Create takes a fresh slot
+    Occupied --> Free : Delete
+    Free --> Occupied : Create prefers a freed slot
+    note right of Free
+        freed slots are reused before fresh ones,
+        so delete/create churn does not
+        burn through capacity
+    end note
 ```
 
-**Operation: Delete**
+Because a freed slot is handed out again, a `slot_id` identifies a
+record only while that record is live — which is the whole reason
+`unique_id` exists (see EmailRecord above).
 
-```mermaid
-%%{init: {'theme':'base', 'themeVariables': {'background':'#ffffff'}}}%%
-sequenceDiagram
-    participant Storage as EmailStorage
-    participant Records_Array as records[]
-    participant Bools_Array as occupied[]
-    participant Free_Slots_Array as next_free_slot[]
-    participant free_list_var as free_list_head
-    participant high_wm_var as high_water_mark
-    participant live_count_var as live_count
-
-    Note over Storage: DeleteEmail receives the slot_id<br>of the record to delete as parameter
-
-    Storage->>Records_Array: fetch the record currently stored<br>at that slot_id, to hand back to the caller<br>as the deleted record on success
-    Storage->>Bools_Array: mark that slot as no longer occupied
-    Storage->>free_list_var: read whichever slot is currently<br>at the front of the free list
-    Storage->>Free_Slots_Array: remember that slot behind the one<br>just freed, so it is not lost
-    Storage->>free_list_var: put the just-freed slot at the front<br>of the list -- it will be offered first<br>to the next CreateEmail
-    Storage->>live_count_var: subtract one from the count of live records
-    Note over high_wm_var: untouched by delete --<br>only CreateEmail ever advances it
-```
-
+Capacity is exhausted only when every slot has been used and none has
+been freed; `CreateEmail` then returns an error result. The link
+mechanics of the free stack are in `dbj_email_storage.h`.
 
 ## Note on Multi Threading
 

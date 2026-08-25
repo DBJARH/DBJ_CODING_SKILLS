@@ -129,7 +129,7 @@ static EmailStorageResult email_storage_create(EmailRecord record) {
     } else if (email_storage_singleton.high_water_mark < EMAIL_STORAGE_CAPACITY) {
         slot = email_storage_singleton.high_water_mark++;
     } else {
-        return email_storage_result_err(__func__, "storage full");
+        return email_storage_result(error_record(__func__, "storage full"));
     }
 
     record.slot_id   = slot;
@@ -137,14 +137,14 @@ static EmailStorageResult email_storage_create(EmailRecord record) {
     email_storage_singleton.records[slot]  = record;
     email_storage_singleton.occupied[slot] = true;
     email_storage_singleton.live_count++;
-    return email_storage_result_ok(record);
+    return email_storage_result(record);
 }
 
 static EmailStorageResult email_storage_read(EmailId id) {
     EmailRecord* found = email_storage_find_by_id(id);
     if (!found)
-        return email_storage_result_err(__func__, "not found");
-    return email_storage_result_ok(*found);
+        return email_storage_result(error_record(__func__, "not found"));
+    return email_storage_result(*found);
 }
 
 /*
@@ -157,10 +157,10 @@ static EmailStorageResult email_storage_read(EmailId id) {
 static EmailStorageResult email_storage_update(EmailRecord record) {
     EmailRecord* slot = email_storage_find_by_id(record.slot_id);
     if (!slot)
-        return email_storage_result_err(__func__, "not found");
+        return email_storage_result(error_record(__func__, "not found"));
     record.unique_id = slot->unique_id;
     *slot = record;
-    return email_storage_result_ok(*slot);
+    return email_storage_result(*slot);
 }
 
 /**
@@ -170,7 +170,7 @@ static EmailStorageResult email_storage_update(EmailRecord record) {
 static EmailStorageResult email_storage_delete(EmailId id) {
     EmailRecord* slot = email_storage_find_by_id(id);
     if (!slot)
-        return email_storage_result_err(__func__, "not found");
+        return email_storage_result(error_record(__func__, "not found"));
 
     EmailRecord deleted = *slot;
     email_storage_singleton.occupied[id] = false;
@@ -179,7 +179,7 @@ static EmailStorageResult email_storage_delete(EmailId id) {
     email_storage_singleton.free_list_head = id;
     email_storage_singleton.live_count--;
 
-    return email_storage_result_ok(deleted);
+    return email_storage_result(deleted);
 }
 
 EmailStorage* create_email_storage_instance(void) {
@@ -221,8 +221,8 @@ EmailStorage* create_email_storage_instance(void) {
  *         .subject = "hi", .body = "..."});
  *
  *     switch (r.tag) {
- *         case EMAIL_STORAGE_OK:  ... r.ok.record ...   break;
- *         case EMAIL_STORAGE_ERR: ... r.err.message ... break;
+ *         case EMAIL_STORAGE_OK:  ... r.email ...          break;
+ *         case EMAIL_STORAGE_ERR: ... r.error.message ...  break;
  *         // no default — -Wswitch catches a missing tag case
  *     }
  */

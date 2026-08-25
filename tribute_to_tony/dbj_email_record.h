@@ -2,7 +2,9 @@
 /*
     2026JUL06       (c) dbj@dbj.org
 
-    EmailRecord is the central, tagged type — see general_design.md,
+    EmailRecord is the central data type — a plain struct, not a tagged
+    union; the discriminated union here is EmailStorageResult, which
+    carries an EmailRecord in its ok arm. See general_design.md,
     section "EmailRecord".
     Storage is a logical array of EmailRecord; the record's own slot_id
     also serves as its index in that array. Occupancy (whether a slot
