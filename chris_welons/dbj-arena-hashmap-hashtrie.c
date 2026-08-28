@@ -152,27 +152,27 @@ static dbj_str_slice dbj_arena_print(dbj_arena *arena, const char *fmt, ...)
 }
 
 /* -------------------------------------------------------------------
-   dbj_slice -- dynamic array
+   dbj_strings -- growable array of dbj_str_slice
    -------------------------------------------------------------------
-   One slice type per element type: C has no templates, and the repo
+   One such type per element type: C has no templates, and the repo
    forbids inventing a generic layer to fake them. {0} is a valid empty
-   slice.
+   dbj_strings.
 
    Wellons offers a second, macro-based mechanism (`push`) that works
    on any data/len/cap struct. It is not here: it evaluates its
    argument several times, and the repo's rule is no abstraction beyond
-   what the file demonstrates. */
+   what the context requires. */
 typedef struct
 {
     dbj_str_slice *data;
     ptrdiff_t len;
     ptrdiff_t cap;
-} dbj_str_slice_array;
+} dbj_strings;
 
-/* Relocate an array to the bump pointer, element by element. */
-static dbj_str_slice_array dbj_str_slice_array_clone(dbj_arena *arena, dbj_str_slice_array source)
+/* Relocate to the bump pointer, element by element. */
+static dbj_strings dbj_strings_clone(dbj_arena *arena, dbj_strings source)
 {
-    dbj_str_slice_array result = {0};
+    dbj_strings result = {0};
     result.len = result.cap = source.len;
     result.data = dbj_arena_new(arena, source.len, dbj_str_slice);
     for (ptrdiff_t i = 0; i < source.len; i++)
@@ -182,29 +182,29 @@ static dbj_str_slice_array dbj_str_slice_array_clone(dbj_arena *arena, dbj_str_s
     return result;
 }
 
-/* Append one element, growing if full. Takes the array by value and
+/* Append one string, growing if full. Takes dbj_strings by value and
    returns the updated header, so callers write
 
-       words = dbj_str_slice_array_append(&arena, words, word);
+       words = dbj_strings_append(&arena, words, word);
 
-   Growth is the same in-place-if-possible trick as concat: an array
+   Growth is the same in-place-if-possible trick as concat: storage
    that already sits at the bump pointer is extended where it lies,
    otherwise it is relocated first. Capacity doubles, from 4. */
-static dbj_str_slice_array
-dbj_str_slice_array_append(dbj_arena *arena, dbj_str_slice_array array, dbj_str_slice value)
+static dbj_strings
+dbj_strings_append(dbj_arena *arena, dbj_strings strings, dbj_str_slice value)
 {
-    if (array.len == array.cap)
+    if (strings.len == strings.cap)
     {
-        if (!array.data || (void *)(array.data + array.len) != arena->beg)
+        if (!strings.data || (void *)(strings.data + strings.len) != arena->beg)
         {
-            array = dbj_str_slice_array_clone(arena, array);
+            strings = dbj_strings_clone(arena, strings);
         }
-        ptrdiff_t extend = array.cap ? array.cap : 4;
+        ptrdiff_t extend = strings.cap ? strings.cap : 4;
         dbj_arena_new(arena, extend, dbj_str_slice); /* grow the backing buffer */
-        array.cap += extend;
+        strings.cap += extend;
     }
-    array.data[array.len++] = value;
-    return array;
+    strings.data[strings.len++] = value;
+    return strings;
 }
 
 /* -------------------------------------------------------------------
@@ -364,9 +364,9 @@ dbj_hashtrie_stack_push(dbj_arena *arena, dbj_hashtrie_stack stack, dbj_hashtrie
     return stack;
 }
 
-static dbj_str_slice_array dbj_hashtrie_keys(dbj_hashtrie *trie, dbj_arena *arena)
+static dbj_strings dbj_hashtrie_keys(dbj_hashtrie *trie, dbj_arena *arena)
 {
-    dbj_str_slice_array result = {0};
+    dbj_strings result = {0};
 
     dbj_hashtrie_frame initial[16]; /* small size optimisation */
     dbj_hashtrie_stack stack = {initial, 0, dbj_countof(initial)};
@@ -383,7 +383,7 @@ static dbj_str_slice_array dbj_hashtrie_keys(dbj_hashtrie *trie, dbj_arena *aren
         else if (top->index == dbj_countof(top->node->child))
         {
             /* all four children visited: emit this node, then pop */
-            result = dbj_str_slice_array_append(arena, result, top->node->key);
+            result = dbj_strings_append(arena, result, top->node->key);
             stack.len--;
         }
         else
@@ -439,18 +439,18 @@ static void dbj_hashtrie_demo(dbj_arena scratch)
     dbj_str_slice *found = dbj_hashtrie_lookup(&trie, DBJ_SS("key100"), nullptr);
     printf("  hashtrie  key100 -> %.*s\n", (int)found->len, found->data);
 
-    dbj_str_slice_array keys = dbj_hashtrie_keys(trie, &scratch);
+    dbj_strings keys = dbj_hashtrie_keys(trie, &scratch);
     printf("  hashtrie  walked %d keys\n", (int)keys.len);
 }
 
 static void dbj_slice_demo(dbj_arena scratch)
 {
-    dbj_str_slice_array words = {0}; /* an empty array is {0} */
+    dbj_strings words = {0}; /* an empty dbj_strings is {0} */
 
     for (int i = 0; i < DBJ_DEMO_COUNT; i++)
     {
         dbj_str_slice word = dbj_arena_print(&scratch, "word%d", i);
-        words = dbj_str_slice_array_append(&scratch, words, word);
+        words = dbj_strings_append(&scratch, words, word);
     }
 
     dbj_str_slice element = words.data[DBJ_DEMO_PROBE];

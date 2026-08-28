@@ -70,7 +70,7 @@ here instead.
 - Keep functions in the "storage + params in, result out" shape used
   throughout — no hidden state, no methods on structs.
 - Don't introduce abstractions, helper layers, or generalization beyond
-  what a given file demonstrates. These are teaching examples, not a
+  what the context requires. These are teaching examples, not a
   library.
 - Avoid single-letter variable names (loop indices aside — `i`/`j`/`k`
   are fine). Use short words instead (`sum`, `row`, `grid`), not long

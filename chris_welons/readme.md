@@ -91,7 +91,7 @@ CLAUDE.md rule 9: every array parameter uses the `static` + size-expression form
 
 - **the `envp` machinery** (`flat_to_envp`, `env_to_envp`, `env_to_envp_safe`, `EnvpSlice`) — POSIX `execve` scaffolding, dead weight on Windows, and not what this file is about.
 
-- **the one `push` macro**: replaced with `append functions`. It evaluates its argument several times and reads badly. CLAUDE.md: no abstractions beyond what the file demonstrates.
+- **the one `push` macro**: replaced with `append functions`. It evaluates its argument several times and reads badly. CLAUDE.md: no abstractions beyond what the context requires.
 
 **Before** — Wellons' one macro, serving every `data`/`len`/`cap` struct there will ever be:
 
@@ -109,11 +109,11 @@ CLAUDE.md rule 9: every array parameter uses the `static` + size-expression form
 >[!Note] Two for the str slice
 
 ```c
-static dbj_str_slice_array
-dbj_str_slice_array_append(dbj_arena *arena, dbj_str_slice_array array, dbj_str_slice value);
+static dbj_strings
+dbj_strings_append(dbj_arena *arena, dbj_strings array, dbj_str_slice value);
 
-static dbj_str_slice_array
-dbj_str_slice_array_clone(dbj_arena *arena, dbj_str_slice_array source);
+static dbj_strings
+dbj_strings_clone(dbj_arena *arena, dbj_strings source);
 ```
 >[!Note] Two for the hashtrie stack
 
