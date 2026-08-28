@@ -27,7 +27,6 @@
 
 #include <dbj_clintro.h>
 #include <dbj_defer.h>
-#include <dbj_macros.h>
 #include <dbj_str_slice.h>
 
 #include <assert.h>
@@ -132,13 +131,8 @@ static dbj_str_slice dbj_str_slice_concat(dbj_arena *arena, dbj_str_slice head, 
 /* printf straight into the arena, no intermediate buffer: the formatted
    text is returned as a slice pointing at it. Only the bytes actually
    written are committed -- the NUL vsnprintf appends is left sitting
-   past `beg`, uncommitted.
-
-   gnu_printf, not printf: on MinGW the plain `printf` archetype checks
-   against the old msvcrt, which rejects %zu and %td. This toolchain is
-   UCRT (see the user CLAUDE.md), which supports both. */
-[[gnu::format(gnu_printf, 2, 3)]] static dbj_str_slice
-dbj_arena_print(dbj_arena *arena, const char *fmt, ...)
+   past `beg`, uncommitted. */
+static dbj_str_slice dbj_arena_print(dbj_arena *arena, const char *fmt, ...)
 {
     va_list args;
     va_start(args, fmt);
@@ -181,7 +175,7 @@ static dbj_str_slice_array dbj_str_slice_array_clone(dbj_arena *arena, dbj_str_s
     dbj_str_slice_array result = {0};
     result.len = result.cap = source.len;
     result.data = dbj_arena_new(arena, source.len, dbj_str_slice);
-    DBJ_LOOP_AS(i, (size_t)source.len)
+    for (ptrdiff_t i = 0; i < source.len; i++)
     {
         result.data[i] = source.data[i];
     }
@@ -346,7 +340,7 @@ static dbj_hashtrie_stack dbj_hashtrie_stack_clone(dbj_arena *arena, dbj_hashtri
     dbj_hashtrie_stack result = {0};
     result.len = result.cap = source.len;
     result.data = dbj_arena_new(arena, source.len, dbj_hashtrie_frame);
-    DBJ_LOOP_AS(i, (size_t)source.len)
+    for (ptrdiff_t i = 0; i < source.len; i++)
     {
         result.data[i] = source.data[i];
     }
@@ -419,10 +413,10 @@ static void dbj_hashmap_demo(dbj_arena scratch)
 {
     dbj_hashmap *map = dbj_arena_new(&scratch, 1, dbj_hashmap);
 
-    DBJ_LOOP_AS(i, DBJ_DEMO_COUNT)
+    for (int i = 0; i < DBJ_DEMO_COUNT; i++)
     {
-        dbj_str_slice key = dbj_arena_print(&scratch, "key%zu", i);
-        dbj_str_slice value = dbj_arena_print(&scratch, "value%zu", i);
+        dbj_str_slice key = dbj_arena_print(&scratch, "key%d", i);
+        dbj_str_slice value = dbj_arena_print(&scratch, "value%d", i);
         *dbj_hashmap_lookup(map, key) = value;
     }
 
@@ -434,10 +428,10 @@ static void dbj_hashtrie_demo(dbj_arena scratch)
 {
     dbj_hashtrie *trie = nullptr; /* an empty trie is a null pointer */
 
-    DBJ_LOOP_AS(i, DBJ_DEMO_COUNT)
+    for (int i = 0; i < DBJ_DEMO_COUNT; i++)
     {
-        dbj_str_slice key = dbj_arena_print(&scratch, "key%zu", i);
-        dbj_str_slice value = dbj_arena_print(&scratch, "value%zu", i);
+        dbj_str_slice key = dbj_arena_print(&scratch, "key%d", i);
+        dbj_str_slice value = dbj_arena_print(&scratch, "value%d", i);
         *dbj_hashtrie_lookup(&trie, key, &scratch) = value;
     }
 
@@ -446,16 +440,16 @@ static void dbj_hashtrie_demo(dbj_arena scratch)
     printf("  hashtrie  key100 -> %.*s\n", (int)found->len, found->data);
 
     dbj_str_slice_array keys = dbj_hashtrie_keys(trie, &scratch);
-    printf("  hashtrie  walked %td keys\n", keys.len);
+    printf("  hashtrie  walked %d keys\n", (int)keys.len);
 }
 
 static void dbj_slice_demo(dbj_arena scratch)
 {
     dbj_str_slice_array words = {0}; /* an empty array is {0} */
 
-    DBJ_LOOP_AS(i, DBJ_DEMO_COUNT)
+    for (int i = 0; i < DBJ_DEMO_COUNT; i++)
     {
-        dbj_str_slice word = dbj_arena_print(&scratch, "word%zu", i);
+        dbj_str_slice word = dbj_arena_print(&scratch, "word%d", i);
         words = dbj_str_slice_array_append(&scratch, words, word);
     }
 

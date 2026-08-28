@@ -26,7 +26,6 @@ $(TARGET): dbj-arena-hashmap-hashtrie.c \
            ../toplevel/dbj_str_slice.h \
            ../toplevel/dbj_clintro.h \
            ../toplevel/dbj_defer.h \
-           ../toplevel/dbj_macros.h \
            ../toplevel/dbj_required_compile_time.h | $(BUILD_DIR)
 	$(CC) $(CFLAGS) -o $(TARGET) dbj-arena-hashmap-hashtrie.c
 
