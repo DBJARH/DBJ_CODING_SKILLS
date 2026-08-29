@@ -12,6 +12,7 @@ Decoupled out of [../chris_welons/](../chris_welons/), where it grew — see tha
 |---|---|
 | [dbj_arena.h](dbj_arena.h) | Bump allocator. Two pointers, no free. Not map-specific. |
 | [dbj_hash_string.h](dbj_hash_string.h) | `HashString`, `HashKey`, `HashMapElement` — the stored types, all discriminated unions. |
+| [dbj_hashmap_element_result.h](dbj_hashmap_element_result.h) | `HashMapElementResult` and the `dbj_result_*` accessor macros. |
 | [dbj_hashmap.h](dbj_hashmap.h) | The map. |
 | [dbj_hashmap_smoketest.c](dbj_hashmap_smoketest.c) | 18 checks, each one a case the map got wrong at some point. |
 
@@ -26,9 +27,12 @@ static dbj_hashmap map;                 /* zeroed is empty; no constructor */
 dbj_hashmap_set(&map, 42, hash_string_32("forty two"));
 
 HashMapElementResult found = dbj_hashmap_get(&map, 42);
-if (found.tag == DBJ_RESULT_OK) {
-    HashMapElement element = found.HashMapElement_OK.my_value;
-    /* element.key.id is HK_EMPTY, HK_NULL or HK_VALUE */
+if (dbj_result_is_ok(found)) {
+    switch (dbj_result_state(found)) {      /* HK_EMPTY | HK_NULL | HK_VALUE */
+    case HK_VALUE: puts(hash_string_text(&dbj_result_value(found))); break;
+    case HK_NULL:  /* key present, no value */ break;
+    case HK_EMPTY: /* key not in the map */    break;
+    }
 }
 ```
 

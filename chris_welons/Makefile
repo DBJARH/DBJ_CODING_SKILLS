@@ -40,6 +40,7 @@ $(STR_TARGET): dbj-str-4-welons.c \
            ../dbj_hashmap/dbj_hashmap.h \
            ../dbj_hashmap/dbj_arena.h \
            ../dbj_hashmap/dbj_hash_string.h \
+           ../dbj_hashmap/dbj_hashmap_element_result.h \
            ../toplevel/dbj_str.h \
            ../toplevel/dbj_result.h \
            ../toplevel/dbj_nanobench.h \

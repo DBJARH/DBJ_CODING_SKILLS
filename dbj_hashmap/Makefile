@@ -29,6 +29,7 @@ $(TARGET): dbj_hashmap_smoketest.c \
            dbj_hashmap.h \
            dbj_arena.h \
            dbj_hash_string.h \
+           dbj_hashmap_element_result.h \
            ../toplevel/dbj_str.h \
            ../toplevel/dbj_result.h \
            ../toplevel/dbj_required_compile_time.h | $(BUILD_DIR)

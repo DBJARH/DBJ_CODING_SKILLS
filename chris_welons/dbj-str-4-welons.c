@@ -66,7 +66,7 @@ static void result_report(const char *what, HashMapElementResult result)
     {
     case DBJ_RESULT_OK:
     {
-        HashMapElement element = result.HashMapElement_OK.my_value;
+        HashMapElement element = dbj_result_element(result);
         printf("  %-18s OK    %-5s", what, hk_id_name(element.key.id));
         if (element.key.id == HK_VALUE)
         {
@@ -77,8 +77,8 @@ static void result_report(const char *what, HashMapElementResult result)
     }
     case DBJ_RESULT_ERR:
         printf("  %-18s ERR   %s: %s\n", what,
-               result.HashMapElement_ERR.location,
-               result.HashMapElement_ERR.message);
+               dbj_result_location(result),
+               dbj_result_message(result));
         break;
     }
     /* No __builtin_unreachable() here, unlike the value-returning

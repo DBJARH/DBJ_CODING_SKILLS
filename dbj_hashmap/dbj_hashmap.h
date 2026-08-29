@@ -37,7 +37,7 @@
 #include <dbj_required_compile_time.h>
 
 #include "dbj_arena.h"
-#include "dbj_hash_string.h"
+#include "dbj_hashmap_element_result.h"
 
 #include <stdint.h>
 

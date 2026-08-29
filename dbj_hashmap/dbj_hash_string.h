@@ -237,11 +237,6 @@ typedef struct
     HashString val;
 } HashMapElement;
 
-/* HashMapElementResult: OK carries an element, ERR carries a location
-   and a message. See toplevel/dbj_result.h.
-
-   Note what is *not* an error: a key that is not in the map comes back
-   OK, holding an element whose key.id is HK_EMPTY. "Absent" is an
-   answer, not a failure. ERR is reserved for the map being unable to
-   answer at all -- capacity exhausted. */
-DBJ_MAKERESULT(HashMapElement);
+/* HashMapElementResult, which wraps this type, lives next door in
+   dbj_hashmap_element_result.h -- the stored types are one concern, the
+   result wrapper another. */
