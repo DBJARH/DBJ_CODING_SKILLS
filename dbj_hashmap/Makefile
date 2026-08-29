@@ -39,7 +39,8 @@ $(SMOKE_TARGET): dbj_hashmap_smoketest.c $(HEADERS) | $(BUILD_DIR)
 
 # -O2 for the benchmarks only: timing an unoptimised build measures
 # something nobody ships.
-$(BENCH_TARGET): dbj_hashmap_benchmarks.c $(HEADERS) ../toplevel/dbj_nanobench.h | $(BUILD_DIR)
+$(BENCH_TARGET): dbj_hashmap_benchmarks.c $(HEADERS) \
+                 ../toplevel/dbj_nanobench.h ../toplevel/dbj_clintro.h | $(BUILD_DIR)
 	$(CC) $(CFLAGS) -O2 -o $(BENCH_TARGET) dbj_hashmap_benchmarks.c
 
 test: $(SMOKE_TARGET)

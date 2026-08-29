@@ -26,6 +26,15 @@
 #include <stdlib.h>
 #include <string.h>
 
+/* Name and version for dbj_clintro's banner, and for any message this
+   app prints about itself.
+
+   Hardcoded on purpose. There is no build-time version generation in
+   this repo and none is wanted here -- dbj_the_game/build_timestamp.inc
+   does that, and it is overkill for a single-file example. The record
+   that counts is the git tag and the `version:` front matter in
+   readme.md; this string is a courtesy to whoever is looking at the
+   terminal, so bump it by hand when the file changes meaningfully. */
 #define DBJ_APP_NAME "dbj_arena_hashmap_hashtrie"
 #define DBJ_APP_VERSION "0.1.0"
 

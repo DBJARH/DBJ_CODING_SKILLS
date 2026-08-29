@@ -20,7 +20,21 @@
 #define DBJ_NANOBENCH_IMPLEMENTATION
 #include <dbj_nanobench.h>
 
+#include <dbj_clintro.h>
+
 #include <stdio.h>
+
+/* Name and version for dbj_clintro's banner, and for any message this
+   app prints about itself.
+
+   Hardcoded on purpose. There is no build-time version generation in
+   this repo and none is wanted here -- dbj_the_game/build_timestamp.inc
+   does that, and it is overkill for a benchmark. The record that counts
+   is the git tag and the `version:` front matter in readme.md; this
+   string is a courtesy to whoever is reading the terminal, so bump it
+   by hand when the file changes meaningfully. */
+#define DBJ_APP_NAME "dbj_hashmap_benchmarks"
+#define DBJ_APP_VERSION "0.5.0"
 
 #define DBJ_BENCH_KEYS 256
 #define DBJ_BENCH_PROBE 100
@@ -30,13 +44,16 @@
    the arena is not what is being measured. */
 static dbj_hashmap bench_map;
 
-int main(void)
+int main(int argc, char *argv[static argc + 1])
 {
+    (void)argv;
+    dbj_clintro(DBJ_APP_NAME, DBJ_APP_VERSION);
+
     for (KeyType key = 0; key < DBJ_BENCH_KEYS; key++)
     {
         (void)dbj_hashmap_set(&bench_map, key, hash_string_32("v"));
     }
-    printf("dbj_hashmap benchmarks -- %td of %d slots filled\n\n",
+    printf("%td of %d slots filled\n\n",
            dbj_hashmap_count(&bench_map), DBJ_HASHMAP_SLOTS);
 
     DBJ_BENCH("hashmap get, key present", HashMapElementResult, {
