@@ -54,7 +54,7 @@ typedef struct
    Returns nullptr rather than asserting when the block cannot satisfy
    the request: exhaustion is an answer the caller can act on, not a
    defect to abort over. Every caller must check. */
-static inline void *dbj_arena_alloc(dbj_arena *arena, ptrdiff_t count, ptrdiff_t size, ptrdiff_t align)
+[[nodiscard]] static inline void *dbj_arena_alloc(dbj_arena *arena, ptrdiff_t count, ptrdiff_t size, ptrdiff_t align)
 {
     /* bytes needed to round beg up to `align` -- align is a power of two */
     ptrdiff_t pad = -(uintptr_t)arena->beg & (align - 1);

@@ -49,6 +49,18 @@ That second point is what lets the result idiom work cleanly:
 
 There are no asserts. `dbj_arena_alloc` likewise returns `nullptr` rather than aborting.
 
+## C23 attributes
+
+Every map operation is `[[nodiscard]]`. The returned `HashMapElementResult` is the *only* report that the map was full, so dropping it discards the one signal that matters. A caller who genuinely means to must say so:
+
+```c
+(void)dbj_hashmap_set(&map, key, value);   /* deliberate, and it shows */
+```
+
+`dbj_hashmap_mix` is `[[gnu::const]]` — its result depends on nothing but its arguments, so GCC folds repeated calls. Verified: two identical calls compile to one.
+
+`hash_key_empty`, `hash_string_128` and `hash_string_len` are `[[maybe_unused]]`. Nothing in this library calls them; they exist because the union has those cases, and the attribute says that is intended rather than an oversight.
+
 ## Capacity is a hard ceiling
 
 `DBJ_HASHMAP_SLOTS` (default 1024, must be a power of two) does not grow. The probe is bounded by it, which is the loop's real termination condition: without that bound, a lookup in a *full* table — no match, no free slot — never returns, and that hits reads as well as writes. The smoke test covers it.

@@ -82,7 +82,7 @@ typedef struct
    expression, which is a GNU extension, and these are three short
    functions. */
 #define DBJ_HASH_STRING_FILLER(type_)                      \
-    static inline type_ type_##_fill(const char *text)     \
+    [[nodiscard]] static inline type_ type_##_fill(const char *text) \
     {                                                      \
         type_ result = {0};                                \
         size_t length = strlen(text);                      \
@@ -98,17 +98,17 @@ DBJ_HASH_STRING_FILLER(str32)
 DBJ_HASH_STRING_FILLER(str64)
 DBJ_HASH_STRING_FILLER(str128)
 
-static inline HashString hash_string_32(const char *text)
+[[nodiscard]] static inline HashString hash_string_32(const char *text)
 {
     return (HashString){.type_id = DBJSTR32, .val32 = str32_fill(text)};
 }
 
-static inline HashString hash_string_64(const char *text)
+[[nodiscard]] static inline HashString hash_string_64(const char *text)
 {
     return (HashString){.type_id = DBJSTR64, .val64 = str64_fill(text)};
 }
 
-static inline HashString hash_string_128(const char *text)
+[[nodiscard, maybe_unused]] static inline HashString hash_string_128(const char *text)
 {
     return (HashString){.type_id = DBJSTR128, .val128 = str128_fill(text)};
 }
@@ -119,7 +119,7 @@ static inline HashString hash_string_128(const char *text)
    value everywhere else.
 
    No `default` case: adding a HashStringTypeID must break this build. */
-static inline const char *hash_string_text(const HashString *text)
+[[nodiscard]] static inline const char *hash_string_text(const HashString *text)
 {
     switch (text->type_id)
     {
@@ -134,7 +134,7 @@ static inline const char *hash_string_text(const HashString *text)
 }
 
 /* Content length of whichever size is live. */
-static inline size_t hash_string_len(const HashString *text)
+[[nodiscard, maybe_unused]] static inline size_t hash_string_len(const HashString *text)
 {
     switch (text->type_id)
     {
@@ -202,8 +202,10 @@ typedef struct
 
 /* Factories. A zeroed HashKey is HK_EMPTY, which is what makes a
    zeroed map an empty map -- so hash_key_empty() exists for clarity at
-   call sites, not because anything needs it to initialise. */
-static inline HashKey hash_key_empty(void)
+   call sites, not because anything needs it to initialise. That is
+   also why it is [[maybe_unused]]: nothing in this library calls it,
+   and that is correct rather than an oversight. */
+[[nodiscard, maybe_unused]] static inline HashKey hash_key_empty(void)
 {
     return (HashKey){.id = HK_EMPTY, .empty = {0}};
 }
@@ -212,12 +214,12 @@ static inline HashKey hash_key_empty(void)
    probe must be able to match it. Only HK_EMPTY has no key at all,
    which is why NullKey is unused in practice -- kept so the union
    states every case it can be in. */
-static inline HashKey hash_key_null(KeyType key)
+[[nodiscard]] static inline HashKey hash_key_null(KeyType key)
 {
     return (HashKey){.id = HK_NULL, .val = {.key = key}};
 }
 
-static inline HashKey hash_key_value(KeyType key)
+[[nodiscard]] static inline HashKey hash_key_value(KeyType key)
 {
     return (HashKey){.id = HK_VALUE, .val = {.key = key}};
 }

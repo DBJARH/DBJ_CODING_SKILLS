@@ -63,8 +63,15 @@ typedef struct
    Consecutive keys (0, 1, 2, ...) would otherwise land in consecutive
    slots -- fine for the index, but it leaves the probe step below
    correlated. This is splitmix64's finaliser: cheap, and it makes the
-   high bits, where the step comes from, as good as the low ones. */
-static inline uint64_t dbj_hashmap_mix(KeyType key, uint64_t seed)
+   high bits, where the step comes from, as good as the low ones.
+
+   [[gnu::const]] is the strongest of the purity attributes: the result
+   depends on the arguments and nothing else -- no memory is read, so
+   repeated calls with the same arguments can be folded into one. Not
+   decoration: compiled with -O1 -fno-inline, two identical calls emit
+   a single `call` instruction. (The weaker [[gnu::pure]] is for a
+   function that does read memory but writes none.) */
+[[gnu::const]] static inline uint64_t dbj_hashmap_mix(KeyType key, uint64_t seed)
 {
     uint64_t hash = (uint64_t)key + seed;
     hash ^= hash >> 30;
@@ -100,7 +107,7 @@ typedef struct
 
    HK_NULL does not stop the search: a null-valued entry is a present
    key, so probing continues past it exactly as past a value. */
-static inline dbj_hashmap_probe dbj_hashmap_slot(const dbj_hashmap *map, KeyType key)
+[[nodiscard]] static inline dbj_hashmap_probe dbj_hashmap_slot(const dbj_hashmap *map, KeyType key)
 {
     uint64_t hash = dbj_hashmap_mix(key, (uintptr_t)map);
     uint32_t step = (uint32_t)(hash >> (64 - DBJ_HASHMAP_EXP)) | 1;
@@ -133,8 +140,12 @@ static inline dbj_hashmap_probe dbj_hashmap_slot(const dbj_hashmap *map, KeyType
    so the caller holds no pointer into the map.
 
    A key that is not present is not a failure: the result is OK and the
-   element's key.id is HK_EMPTY. ERR means the map could not answer. */
-static inline HashMapElementResult dbj_hashmap_get(const dbj_hashmap *map, KeyType key)
+   element's key.id is HK_EMPTY. ERR means the map could not answer.
+
+   [[nodiscard]] throughout the map: the returned result is the only
+   report that the map was full. Dropping it discards that, so a caller
+   who really means to must say so with (void). */
+[[nodiscard]] static inline HashMapElementResult dbj_hashmap_get(const dbj_hashmap *map, KeyType key)
 {
     dbj_hashmap_probe probe = dbj_hashmap_slot(map, key);
     if (!probe.found)
@@ -146,7 +157,7 @@ static inline HashMapElementResult dbj_hashmap_get(const dbj_hashmap *map, KeyTy
 
 /* Write a key with a value. Inserts, or replaces the value of a key
    already present. Returns the element as stored. */
-static inline HashMapElementResult dbj_hashmap_set(dbj_hashmap *map, KeyType key, HashString value)
+[[nodiscard]] static inline HashMapElementResult dbj_hashmap_set(dbj_hashmap *map, KeyType key, HashString value)
 {
     dbj_hashmap_probe probe = dbj_hashmap_slot(map, key);
     if (!probe.found)
@@ -160,7 +171,7 @@ static inline HashMapElementResult dbj_hashmap_set(dbj_hashmap *map, KeyType key
 /* Write a key with no value -- the SQL NULL of this map. The key stays
    present, so probing does not stop at it and a later get reports
    HK_NULL rather than HK_EMPTY. */
-static inline HashMapElementResult dbj_hashmap_set_null(dbj_hashmap *map, KeyType key)
+[[nodiscard]] static inline HashMapElementResult dbj_hashmap_set_null(dbj_hashmap *map, KeyType key)
 {
     dbj_hashmap_probe probe = dbj_hashmap_slot(map, key);
     if (!probe.found)
@@ -172,7 +183,7 @@ static inline HashMapElementResult dbj_hashmap_set_null(dbj_hashmap *map, KeyTyp
 }
 
 /* How many slots hold a key -- HK_VALUE and HK_NULL alike. */
-static inline ptrdiff_t dbj_hashmap_count(const dbj_hashmap *map)
+[[nodiscard]] static inline ptrdiff_t dbj_hashmap_count(const dbj_hashmap *map)
 {
     ptrdiff_t used = 0;
     for (ptrdiff_t i = 0; i < DBJ_HASHMAP_SLOTS; i++)
