@@ -18,6 +18,10 @@
     the two text kinds, the slice is the one to watch -- it hashes the
     bytes that are there, where the owned string hashes its whole fixed
     buffer whatever the key's actual length.
+
+    Last, an insert measured the way dbj_uthash measures its own, so
+    the two are read side by side -- with the asymmetry stated at that
+    function rather than buried in a table.
 */
 #include <dbj_required_compile_time.h>
 
@@ -42,7 +46,7 @@
    string is a courtesy to whoever is reading the terminal, so bump it
    by hand when the file changes meaningfully. */
 #define DBJ_APP_NAME "dbj_hashmap_benchmarks"
-#define DBJ_APP_VERSION "0.8.0"
+#define DBJ_APP_VERSION "0.9.0"
 
 #define DBJ_BENCH_KEYS 256
 #define DBJ_BENCH_PROBE 100
@@ -55,10 +59,72 @@ static dbj_hashmap bench_map;
 static dbj_hashmap strkey_map;
 static dbj_hashmap slice_map;
 
+/* The insert benchmark zeroes its map on every run, so it gets one of
+   its own -- bench_map is filled once and read by the lookups above. */
+static dbj_hashmap insert_map;
+
 /* The block the slice keys' text lives in. File scope so it outlives
    the map, which is the lifetime the slice kind requires; the arena
    below only points into it. */
 static char slice_arena_block[DBJ_BENCH_ARENA];
+
+
+/* Insert, measured the same way dbj_uthash/uthash_benchmark.c measures
+   it: time a full DBJ_BENCH_KEYS fill and divide, so the number is
+   per key and the two are read side by side.
+
+   DBJ_MEASURE cannot do this. It times its block every iteration, and
+   an insert benchmark needs the map zeroed between runs -- that memset
+   would be timed with the inserts.
+
+   What the two numbers do NOT say is which table is better at
+   inserting. uthash grows and rehashes as it fills and would take a
+   100,000th key; this map has 1024 slots and answers ERR past them.
+   Refusing to grow is most of why it is quicker. Same load, different
+   promises. */
+[[nodiscard]] static double fill_ns_per_key(dbj_hashmap *map, HashString value)
+{
+    memset(map, 0, sizeof *map); /* a zeroed map is an empty map */
+
+    uint64_t started = DBJ_NB_now_ns();
+    for (KeyOrdinal key = 0; key < DBJ_BENCH_KEYS; key++)
+    {
+        (void)dbj_hashmap_set(map, hash_key_ordinal(key), value);
+    }
+    uint64_t elapsed = DBJ_NB_now_ns() - started;
+
+    return (double)elapsed / DBJ_BENCH_KEYS;
+}
+
+/* Reports the way DBJ_MEASURE does, so the line sits with the others. */
+static void bench_insert(dbj_hashmap *map)
+{
+    HashString value = hash_string_32("v");
+
+    DBJ_NB_result result = {.name = "ordinal key insert, per key",
+                            .warmup_iters = 100,
+                            .iters = 1000,
+                            .min_ns = UINT64_MAX};
+
+    for (uint64_t i = 0; i < result.warmup_iters; i++)
+    {
+        (void)fill_ns_per_key(map, value);
+    }
+    for (uint64_t i = 0; i < result.iters; i++)
+    {
+        uint64_t per_key = (uint64_t)fill_ns_per_key(map, value);
+        result.total_ns += per_key;
+        if (per_key < result.min_ns)
+        {
+            result.min_ns = per_key;
+        }
+        if (per_key > result.max_ns)
+        {
+            result.max_ns = per_key;
+        }
+    }
+    DBJ_NB_report(&result);
+}
 
 int main(int argc, char *argv[static argc + 1])
 {
@@ -143,6 +209,8 @@ int main(int argc, char *argv[static argc + 1])
     DBJ_BENCH("slice key hash alone", uint64_t, {
         DBJ_NB_val = hash_key_hash(hash_key_slice(DBJ_SS("key100")));
     });
+
+    bench_insert(&insert_map);
 
     return 0;
 }

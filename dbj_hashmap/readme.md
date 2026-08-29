@@ -128,17 +128,20 @@ Note that the key union is as large as its largest member, so every slot pays fo
 
 ## Measured
 
-256 keys, `"key0".."key255"`, against [../chris_welons/wellons_benchmark.c](../chris_welons/wellons_benchmark.c) on the same data. Microseconds, `-O2`.
+256 keys, `"key0".."key255"`, against [../chris_welons/wellons_benchmark.c](../chris_welons/wellons_benchmark.c) and [../dbj_uthash/uthash_benchmark.c](../dbj_uthash/uthash_benchmark.c) on the same data, `-O2`. Units per row.
 
-| | ordinal | owned string | slice | Wellons |
-|---|---|---|---|---|
-| get, key present | 0.05 | 0.12 | 0.05 | 0.03 |
-| get, key absent | 0.05 | 0.11 | 0.05 | 0.03 |
-| hash alone | — | 0.08 | 0.03 | 0.03 |
+| | ordinal | owned string | slice | Wellons | uthash |
+|---|---|---|---|---|---|
+| get, key present (µs) | 0.05 | 0.12 | 0.05 | 0.03 | 0.04 |
+| get, key absent (µs) | 0.05 | 0.11 | 0.05 | 0.03 | 0.03 |
+| hash alone (µs) | — | 0.08 | 0.03 | 0.03 | 0.03 |
+| insert, per key (ns) | 5 | — | — | — | 10 |
 
 The slice hash matches Wellons' `hash64` exactly, which it should — both hash only the bytes present with the same FNV-style loop. The owned string's 0.08 is entirely its fixed 32-byte buffer: same map, same probe, only the key kind changed.
 
 The remaining 0.05 against 0.03 on a full get is this map copying `HashMapElement` out by value, where Wellons returns a pointer into his table.
+
+The insert row is 2x against uthash, measured the same way in both — a full 256-key fill, divided, allocation outside the timed region. It is not a claim that this map inserts better: uthash grows and rehashes as it fills and would take a 100,000th key, where this one has 1024 slots and answers `ERR` past them. Refusing to grow is most of what the 2x buys. See [../dbj_uthash/readme.md](../dbj_uthash/readme.md).
 
 Read these as orders of magnitude, not measurements. `dbj_nanobench` reports `min=0.00` throughout, so the averages sit near its resolution floor — the 2-3x gaps are real, anything smaller is not.
 
