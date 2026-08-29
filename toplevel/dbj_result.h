@@ -80,22 +80,28 @@ convention as the rest of this repo's headers.
     T_##Result T_##_make_ok(T_ my_value_);                                                     \
     T_##Result T_##_make_err(const char *location_, const char *message)
 
-#define DBJ_MAKERESULT_IMPL(T_)                                                       \
-    T_##Result T_##_make_ok(T_ my_value_)                                             \
-    {                                                                                 \
-        return (T_##Result){                                                          \
-            .tag = DBJ_RESULT_OK,                                                     \
-            .T_##_OK = {.my_value = my_value_}};                                      \
-    }                                                                                 \
-                                                                                      \
-    T_##Result T_##_make_err(const char *location_, const char *message)                          \
-    {                                                                                             \
-        T_##Result r_ = (T_##Result){.tag = DBJ_RESULT_ERR};                                      \
+#define DBJ_MAKERESULT_IMPL(T_)                                                                      \
+    T_##Result T_##_make_ok(T_ my_value_)                                                            \
+    {                                                                                                \
+        return (T_##Result){                                                                         \
+            .tag = DBJ_RESULT_OK,                                                                    \
+            .T_##_OK = {.my_value = my_value_}};                                                     \
+    }                                                                                                \
+                                                                                                     \
+    /* (void) on each snprintf result, not merely the assert: with                                   \
+       NDEBUG the assert vanishes and the variable is left unused,                                   \
+       which -Werror=unused-variable rejects. The snprintf call                                      \
+       itself is outside the assert, so it survives either way. */                                   \
+    T_##Result T_##_make_err(const char *location_, const char *message)                             \
+    {                                                                                                \
+        T_##Result r_ = (T_##Result){.tag = DBJ_RESULT_ERR};                                         \
         int loc_rez_ = snprintf(r_.T_##_ERR.location, sizeof r_.T_##_ERR.location, "%s", location_); \
-        assert(loc_rez_ >= 0 && (size_t)loc_rez_ < sizeof r_.T_##_ERR.location);                  \
-        int msg_rez_ = snprintf(r_.T_##_ERR.message, sizeof r_.T_##_ERR.message, "%s", message);  \
-        assert(msg_rez_ >= 0 && (size_t)msg_rez_ < sizeof r_.T_##_ERR.message);                   \
-        return r_;                                                                                \
+        assert(loc_rez_ >= 0 && (size_t)loc_rez_ < sizeof r_.T_##_ERR.location);                     \
+        (void)loc_rez_;                                                                              \
+        int msg_rez_ = snprintf(r_.T_##_ERR.message, sizeof r_.T_##_ERR.message, "%s", message);     \
+        assert(msg_rez_ >= 0 && (size_t)msg_rez_ < sizeof r_.T_##_ERR.message);                      \
+        (void)msg_rez_;                                                                              \
+        return r_;                                                                                   \
     }
 
 #ifdef DBJ_MAKERESULT_IMPLEMENTATION
