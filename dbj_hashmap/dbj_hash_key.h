@@ -148,15 +148,47 @@ typedef struct
 
 /* FNV-1a over the whole fixed buffer, trailing zeros included: the
    buffer is zero-filled by the factory, so two equal strings hash the
-   same without a strlen first. */
+   same without a strlen first.
+
+   Eight bytes at a time, not one. FNV-1a's multiply is a dependency
+   chain -- each round needs the previous round's product -- so a
+   32-byte buffer costs 32 imuls back to back, and imul latency is what
+   is being paid, not throughput. Measured: 33ns for the byte loop, out
+   of 65ns for a whole string-key get. Four word rounds cost four.
+
+   memcpy for the load, not a cast: KeyString's data is unsigned char
+   with alignment 1, and a uint64_t* through it is both misaligned and
+   an aliasing violation. GCC emits a single mov.
+
+   The tail loop is for a KeyString whose capacity is not a multiple of
+   eight -- str32 has none, but KeyString is configurable.
+
+   The finaliser is not decoration. Word rounds diffuse a byte's bits
+   upward only, so without it two keys differing in one low byte land
+   in neighbouring buckets. The map would hide that (dbj_hashmap_mix
+   runs splitmix64 over whatever it gets), but this function is public
+   and its result must stand on its own. */
 [[gnu::const]] static inline uint64_t hash_key_string_hash(KeyString text)
 {
     uint64_t hash = 0xcbf29ce484222325u;
-    for (size_t i = 0; i < sizeof(text.data); i++)
+    size_t i = 0;
+
+    for (; i + sizeof(uint64_t) <= sizeof(text.data); i += sizeof(uint64_t))
+    {
+        uint64_t word;
+        memcpy(&word, text.data + i, sizeof word);
+        hash ^= word;
+        hash *= 0x00000100000001b3u;
+    }
+    for (; i < sizeof(text.data); i++)
     {
         hash ^= text.data[i];
         hash *= 0x00000100000001b3u;
     }
+
+    hash ^= hash >> 32;
+    hash *= 0x00000100000001b3u;
+    hash ^= hash >> 32;
     return hash;
 }
 

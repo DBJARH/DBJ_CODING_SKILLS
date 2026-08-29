@@ -1,5 +1,5 @@
 ---
-version: 0.8
+version: 0.9
 ---
 
 # dbj_hashmap
@@ -118,32 +118,102 @@ Every map operation is `[[nodiscard]]`. The returned `HashMapElementResult` is t
 
 `hash_key_empty`, `hash_string_128` and `hash_string_len` are `[[maybe_unused]]`. Nothing in this library calls them; they exist because the unions have those cases, and the attribute says that is intended rather than an oversight.
 
+## Storage is three arrays, not one
+
+A `HashMapElement` is 184 bytes, 132 of them the value. Held in one
+array, the probe strode 184 bytes through 184 KB to read four bytes of
+tag, pulling a value into L1 at every step to ignore it.
+
+```
+dbj_hashmap
+├── index[N]  { hk_id id; uint64_t hash; }   16 KB  the probe walks only this
+├── keys[N]     HashKey                      40 KB  read on a hash match
+└── vals[N]     HashString                  132 KB  read on a hit
+```
+
+Same bytes, same ceiling; what changed is how much of it a probe has to
+touch. 16 KB stays in L1 at any load. The stored hash is the other half:
+a mismatched slot now costs one 64-bit compare instead of a
+`hash_key_equal` — a 32-byte `memcmp` for a string key, a dereference
+for a slice. `hash_key_equal` still decides, on candidates only, because
+a hash match is not a key match.
+
+`HashMapElement` survives as the shape of an *answer*. It was the shape
+of storage too until the probe was measured.
+
+The three operations are `[[gnu::always_inline]]`, which is also
+measured rather than preferred: assembling an element out of three
+arrays costs enough inliner budget that GCC put `dbj_hashmap_set` out of
+line, and an out-of-line `set` must copy its 132-byte `HashString`
+argument onto the stack at every call site. That alone took insert from
+5 ns to 27 ns per key.
+
 ## Capacity is a hard ceiling
 
 `DBJ_HASHMAP_SLOTS` (default 1024, must be a power of two) does not grow. The probe is bounded by it, which is the loop's real termination condition: without that bound, a lookup in a *full* table — no match, no free slot — never returns, and that hits reads as well as writes. The smoke test covers it.
 
 Keep the load well under capacity. Open addressing degrades as it fills, and past full it stops answering.
 
-Note that the key union is as large as its largest member, so every slot pays for `KeyString` even in a map that only ever holds ordinals. That is the price of one map type over all key kinds.
+Note that the key union is as large as its largest member, so every slot pays for `KeyString` even in a map that only ever holds ordinals. That is the price of one map type over all key kinds. Splitting the arrays moved that cost out of the probe's path; it did not remove it.
 
 ## Measured
 
-256 keys, `"key0".."key255"`, against [../chris_welons/wellons_benchmark.c](../chris_welons/wellons_benchmark.c) and [../dbj_uthash/uthash_benchmark.c](../dbj_uthash/uthash_benchmark.c) on the same data, `-O2`. Units per row.
+256 keys, `"key0".."key255"`, `-O2`, on the same data throughout.
+
+### What the optimisation pass moved
+
+`dbj_nanobench` times one call at a time and its floor is around 10 ns,
+which here is most of the measurement. These are the same operations
+timed over 10 million iterations and divided, which is the only way the
+change is visible at all:
+
+| ns/op | before | after |
+|---|---|---|
+| ordinal get, key present | 4.9 | **3.3** |
+| ordinal get, key absent | 4.2 | **2.1** |
+| slice get, key present | 7.8 | **6.4** |
+| owned string get, key present | 65.7 | **41.3** |
+| owned string hash alone | 32.9 | **2.6** |
+| insert, warm | 9.7 | **7.1** |
+| insert, cold fill | 9.7 | 9.9 |
+
+Three changes, and the credit does not split evenly. The string hash's
+12x is one change on its own: FNV-1a's multiply is a dependency chain,
+so 32 bytes cost 32 back-to-back `imul`s, and latency was being paid
+rather than throughput — four 8-byte rounds cost four. The rest is the
+array split above.
+
+Note what did *not* move: cold fill. Three arrays mean three distant
+cache lines dirtied per insert where one array meant three adjacent
+ones, and that pays back exactly what the probe saves. A fill-once
+read-many map wins; a fill-heavy one does not.
+
+Note also what a whole-string get still costs against its own hash: 41
+against 2.6. The remainder is `HashKey` — 40 bytes — moving by value
+through `hash_key_string`, `hash_key_hash`, `dbj_hashmap_slot` and
+`hash_key_equal`. That is the next thing, and it is a question about
+the union, not about the map.
+
+### Against other tables
+
+Against [../chris_welons/wellons_benchmark.c](../chris_welons/wellons_benchmark.c)
+and [../dbj_uthash/uthash_benchmark.c](../dbj_uthash/uthash_benchmark.c),
+as `make bench` reports it. Units per row. Read these as orders of
+magnitude: at a 10 ns floor, a 0.01 difference is nothing, and the
+table cannot see most of what the row above measured.
 
 | | ordinal | owned string | slice | Wellons | uthash |
 |---|---|---|---|---|---|
-| get, key present (µs) | 0.05 | 0.12 | 0.05 | 0.03 | 0.04 |
-| get, key absent (µs) | 0.05 | 0.11 | 0.05 | 0.03 | 0.03 |
-| hash alone (µs) | — | 0.08 | 0.03 | 0.03 | 0.03 |
+| get, key present (µs) | 0.05 | 0.10 | 0.06 | 0.03 | 0.04 |
+| get, key absent (µs) | 0.05 | 0.09 | 0.06 | 0.03 | 0.03 |
+| hash alone (µs) | — | 0.05 | 0.03 | 0.03 | 0.03 |
 | insert, per key (ns) | 5 | — | — | — | 10 |
 
-The slice hash matches Wellons' `hash64` exactly, which it should — both hash only the bytes present with the same FNV-style loop. The owned string's 0.08 is entirely its fixed 32-byte buffer: same map, same probe, only the key kind changed.
+The slice hash matches Wellons' `hash64`, which it should — both hash only the bytes present with the same FNV-style loop. The owned string's remaining excess is its fixed 32-byte buffer: same map, same probe, only the key kind changed.
 
 The remaining 0.05 against 0.03 on a full get is this map copying `HashMapElement` out by value, where Wellons returns a pointer into his table.
 
 The insert row is 2x against uthash, measured the same way in both — a full 256-key fill, divided, allocation outside the timed region. It is not a claim that this map inserts better: uthash grows and rehashes as it fills and would take a 100,000th key, where this one has 1024 slots and answers `ERR` past them. Refusing to grow is most of what the 2x buys. See [../dbj_uthash/readme.md](../dbj_uthash/readme.md).
-
-Read these as orders of magnitude, not measurements. `dbj_nanobench` reports `min=0.00` throughout, so the averages sit near its resolution floor — the 2-3x gaps are real, anything smaller is not.
 
 ## `-Wswitch-enum`
 

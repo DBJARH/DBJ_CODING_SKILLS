@@ -40,7 +40,7 @@ struct MyTypeResult {
 
 Factory functions generated alongside the type:
 
-MyTypeResult MyType_make_ok(MyType my_value_);
+static inline MyTypeResult MyType_make_ok(MyType my_value_);   // in every TU
 MyTypeResult MyType_make_err(const char *location_, const char *message);
 
 NOTE: location_/message take plain `const char *`, not a `static N`
@@ -50,10 +50,11 @@ don't satisfy (confirmed by -Wstringop-overread when this was tried).
 The fixed-size arrays are only for the *storage* fields inside the
 struct, copied in via snprintf.
 
-Declarations are always emitted. Definitions are only emitted in the
-one translation unit that defines DBJ_MAKERESULT_IMPLEMENTATION before
-the DBJ_MAKERESULT(MyType) invocation -- same exactly-once-TU
-convention as the rest of this repo's headers.
+Declarations are always emitted, and so is the OK factory's body --
+it is static inline. Only make_err's definition waits for the one
+translation unit that defines DBJ_MAKERESULT_IMPLEMENTATION before the
+DBJ_MAKERESULT(MyType) invocation -- same exactly-once-TU convention
+as the rest of this repo's headers.
 
 */
 
@@ -77,17 +78,24 @@ convention as the rest of this repo's headers.
         };                                                                                     \
     };                                                                                         \
                                                                                                \
-    T_##Result T_##_make_ok(T_ my_value_);                                                     \
+    /* static inline, and emitted here rather than in the IMPL half:                            \
+       the OK factory is two stores and needs neither snprintf nor                              \
+       assert, so nothing forced it out of line. Out of line it cost a                           \
+       real call returning the whole union by hidden pointer -- the                             \
+       ERR arm's kilobyte included -- on a path that never touches the                          \
+       ERR arm. Inline, the compiler sees the dead arm and drops it.                            \
+       The err factory below stays out of line: it is the cold path,                            \
+       and it is what the IMPLEMENTATION convention is for. */                                  \
+    [[nodiscard]] static inline T_##Result T_##_make_ok(T_ my_value_)                           \
+    {                                                                                          \
+        return (T_##Result){                                                                   \
+            .tag = DBJ_RESULT_OK,                                                              \
+            .T_##_OK = {.my_value = my_value_}};                                               \
+    }                                                                                          \
+                                                                                               \
     T_##Result T_##_make_err(const char *location_, const char *message)
 
 #define DBJ_MAKERESULT_IMPL(T_)                                                                      \
-    T_##Result T_##_make_ok(T_ my_value_)                                                            \
-    {                                                                                                \
-        return (T_##Result){                                                                         \
-            .tag = DBJ_RESULT_OK,                                                                    \
-            .T_##_OK = {.my_value = my_value_}};                                                     \
-    }                                                                                                \
-                                                                                                     \
     /* (void) on each snprintf result, not merely the assert: with                                   \
        NDEBUG the assert vanishes and the variable is left unused,                                   \
        which -Werror=unused-variable rejects. The snprintf call                                      \
