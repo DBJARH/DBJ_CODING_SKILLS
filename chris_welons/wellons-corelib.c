@@ -3,7 +3,7 @@
 // https://nullprogram.com/blog/2025/01/19/
 // This is free and unencumbered software released into the public domain.
 //
-// Companion source for yet-another-good-corelib.md in this folder.
+// Companion source for wellons-corelib.md in this folder.
 // Four independent demos, each handed a *by-value copy* of the arena so
 // everything it allocates is discarded when it returns:
 //
@@ -12,7 +12,10 @@
 //   push_demo      dynamic array via the push() macro
 //   append_demo    dynamic array via a value-returning append()
 //
-// Comments added by ZED; code is Wellons' original.
+// Comments added by ZED. The code is Wellons' original, with one
+// addition: main() below is wrapped in #ifndef WELLONS_AS_LIB, so this
+// file can be #included by another translation unit that supplies its
+// own main -- see wellons_benchmark.c. Nothing else was touched.
 #include <assert.h>
 #include <stdarg.h>
 #include <stddef.h>
@@ -474,6 +477,13 @@ void hashtrie_demo(Arena scratch)
 // value, so all four start from the same empty arena and none can see
 // another's allocations. Expected output: value100, value100, word100,
 // word100. The block is never freed — process exit does that.
+// Define WELLONS_AS_LIB before including this file to suppress main()
+// and use everything above as a library. On the edge of a hack, and
+// exactly the kind of thing C lets you do: one #define turns a program
+// into a header. Nothing else here changes -- the demos, the arena and
+// both tables behave identically either way.
+#ifndef WELLONS_AS_LIB
+
 int main(void)
 {
     int   cap = 1<<24;
@@ -485,3 +495,5 @@ int main(void)
     push_demo(a);
     append_demo(a);
 }
+
+#endif // WELLONS_AS_LIB

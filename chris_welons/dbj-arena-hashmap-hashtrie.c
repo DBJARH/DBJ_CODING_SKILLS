@@ -5,7 +5,7 @@
     core-lib techniques. https://nullprogram.com/blog/2025/01/19/
 
     His unmodified original is beside this file as
-    yet-another-good-corelib.c. What was kept and dropped, and why, is
+    wellons-corelib.c. What was kept and dropped, and why, is
     in readme.md.
 
     All-bits-zero is a valid value of every type here, so none has a

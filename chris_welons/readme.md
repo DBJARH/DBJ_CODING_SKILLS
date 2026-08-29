@@ -8,8 +8,9 @@ His techniques, kept here for comparison, and a dbj rework of the parts transfor
 
 | File | What it is |
 |---|---|
-| [yet-another-good-corelib.md](yet-another-good-corelib.md) | The original article, reformatted. Unmodified prose. |
-| [yet-another-good-corelib.c](yet-another-good-corelib.c) | The original runnable source, unmodified code, comments added. Reference only — do not develop here. |
+| [wellons-corelib.md](wellons-corelib.md) | The original article, reformatted. Unmodified prose. |
+| [wellons-corelib.c](wellons-corelib.c) | His runnable source. Comments added, and `main()` wrapped in `#ifndef WELLONS_AS_LIB`; otherwise his code untouched. Reference only — do not develop here. |
+| [wellons_benchmark.c](wellons_benchmark.c) | His code benchmarked, by `#include`-ing it with `WELLONS_AS_LIB` set. `make bench`. |
 | [dbj-arena-hashmap-hashtrie.c](dbj-arena-hashmap-hashtrie.c) | 0.1 — the dbj rework, keys are `dbj_str_slice` views into the arena. |
 
 The 0.5 work has left this folder entirely: it lives in [../dbj_hashmap/](../dbj_hashmap/), a library folder with its own readme, smoke test, benchmarks and Makefile. `dbj-str-4-welons.c` is gone — its demo said nothing the smoke test does not assert, and its benchmarks moved next to what they measure.

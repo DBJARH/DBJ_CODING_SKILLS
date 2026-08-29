@@ -615,4 +615,4 @@ its allocator. What a pleasant way to work!
 
 ---
 
-[Source in runnable form](yet-another-good-corelib.c)
+[Source in runnable form](wellons-corelib.c)
