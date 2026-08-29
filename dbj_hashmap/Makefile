@@ -28,9 +28,12 @@ $(BUILD_DIR):
 
 HEADERS := dbj_hashmap.h \
            dbj_hashmap_element_result.h \
+           dbj_hashmap_element.h \
+           dbj_hash_key.h \
            dbj_hash_string.h \
            dbj_arena.h \
            ../toplevel/dbj_str.h \
+           ../toplevel/dbj_str_slice.h \
            ../toplevel/dbj_result.h \
            ../toplevel/dbj_required_compile_time.h
 

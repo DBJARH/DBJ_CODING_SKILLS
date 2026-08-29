@@ -10,9 +10,10 @@
 
     Two departures from the usual string-keyed table:
 
-      1. The key is ordinal. KeyType is its own hash -- nothing to
-         store, nothing to compare, and no collision is possible,
-         because the key is itself rather than a digest of itself.
+      1. The key is a HashKey -- a discriminated union over key kinds
+         (ordinal, string, whatever is added). The map never touches a
+         key's internals; it asks hash_key_hash and hash_key_equal, so
+         a new key kind is a case in dbj_hash_key.h and nothing here.
 
       2. Absence is a state of the slot, not a sentinel value, so any
          value at all is legal to store.
@@ -22,12 +23,14 @@
 
     Configure before including, or take the defaults:
 
-        KeyType             the key, an ordinal type (unsigned int)
+        KeyOrdinal          the ordinal key type (unsigned int)
+        KeyString           the string key type (str32)
         DBJ_HASHMAP_SLOTS   slot count, a power of two (1024)
 */
 #include <dbj_required_compile_time.h>
 
 #include "dbj_arena.h"
+#include "dbj_hash_key.h"
 #include "dbj_hashmap_element_result.h"
 
 #include <stdint.h>
@@ -47,18 +50,19 @@ typedef struct
     HashMapElement slots[DBJ_HASHMAP_SLOTS];
 } dbj_hashmap;
 
-/* Consecutive keys (0, 1, 2, ...) land in consecutive slots -- fine
-   for the index, but it leaves the probe step correlated. splitmix64's
-   finaliser is cheap and makes the high bits, where the step comes
-   from, as good as the low ones.
+/* Consecutive ordinal keys (0, 1, 2, ...) land in consecutive slots --
+   fine for the index, but it leaves the probe step correlated.
+   splitmix64's finaliser is cheap and makes the high bits, where the
+   step comes from, as good as the low ones. A string key arrives
+   already hashed by FNV-1a, and mixing it again costs nothing.
 
    [[gnu::const]]: the result depends on the arguments and nothing
    else, so repeated calls fold into one. Not decoration -- at
    -O1 -fno-inline two identical calls emit a single `call`. (The
    weaker [[gnu::pure]] is for a function that reads memory.) */
-[[gnu::const]] static inline uint64_t dbj_hashmap_mix(KeyType key, uint64_t seed)
+[[gnu::const]] static inline uint64_t dbj_hashmap_mix(uint64_t key, uint64_t seed)
 {
-    uint64_t hash = (uint64_t)key + seed;
+    uint64_t hash = key + seed;
     hash ^= hash >> 30;
     hash *= 0xbf58476d1ce4e5b9u;
     hash ^= hash >> 27;
@@ -87,16 +91,16 @@ typedef struct
 
    HK_NULL does not stop the search: a null-valued entry is a present
    key, so probing continues past it as it would past a value. */
-[[nodiscard]] static inline dbj_hashmap_probe dbj_hashmap_slot(const dbj_hashmap *map, KeyType key)
+[[nodiscard]] static inline dbj_hashmap_probe dbj_hashmap_slot(const dbj_hashmap *map, HashKey key)
 {
-    uint64_t hash = dbj_hashmap_mix(key, (uintptr_t)map);
+    uint64_t hash = dbj_hashmap_mix(hash_key_hash(key), (uintptr_t)map);
     uint32_t step = (uint32_t)(hash >> (64 - DBJ_HASHMAP_EXP)) | 1;
     uint32_t index = (uint32_t)hash;
 
     for (int probes = 0; probes < DBJ_HASHMAP_SLOTS; probes++)
     {
         index = (index + step) & DBJ_HASHMAP_MASK;
-        const HashKey *slot_key = &map->slots[index].key;
+        const HashKeyHandle *slot_key = &map->slots[index].key;
 
         switch (slot_key->id)
         {
@@ -106,7 +110,7 @@ typedef struct
             return (dbj_hashmap_probe){.found = true, .index = (ptrdiff_t)index};
         case HK_NULL:
         case HK_VALUE:
-            if (slot_key->val.key == key)
+            if (hash_key_equal(slot_key->val, key))
             {
                 return (dbj_hashmap_probe){.found = true, .index = (ptrdiff_t)index};
             }
@@ -122,7 +126,7 @@ typedef struct
 
    [[nodiscard]] throughout: the result is the only report that the map
    was full, so dropping it must be spelled (void). */
-[[nodiscard]] static inline HashMapElementResult dbj_hashmap_get(const dbj_hashmap *map, KeyType key)
+[[nodiscard]] static inline HashMapElementResult dbj_hashmap_get(const dbj_hashmap *map, HashKey key)
 {
     dbj_hashmap_probe probe = dbj_hashmap_slot(map, key);
     if (!probe.found)
@@ -133,7 +137,7 @@ typedef struct
 }
 
 /* Insert, or replace the value of a key already present. */
-[[nodiscard]] static inline HashMapElementResult dbj_hashmap_set(dbj_hashmap *map, KeyType key, HashString value)
+[[nodiscard]] static inline HashMapElementResult dbj_hashmap_set(dbj_hashmap *map, HashKey key, HashString value)
 {
     dbj_hashmap_probe probe = dbj_hashmap_slot(map, key);
     if (!probe.found)
@@ -146,7 +150,7 @@ typedef struct
 
 /* The SQL NULL of this map. The key stays present, so probing does not
    stop at it and a later get reports HK_NULL, not HK_EMPTY. */
-[[nodiscard]] static inline HashMapElementResult dbj_hashmap_set_null(dbj_hashmap *map, KeyType key)
+[[nodiscard]] static inline HashMapElementResult dbj_hashmap_set_null(dbj_hashmap *map, HashKey key)
 {
     dbj_hashmap_probe probe = dbj_hashmap_slot(map, key);
     if (!probe.found)

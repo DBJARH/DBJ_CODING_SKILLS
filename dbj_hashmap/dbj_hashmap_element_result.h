@@ -17,7 +17,7 @@
 */
 #include <dbj_required_compile_time.h>
 
-#include "dbj_hash_string.h"
+#include "dbj_hashmap_element.h"
 
 #include <stdio.h> /* snprintf, for DBJ_MAKERESULT's err factory */
 
