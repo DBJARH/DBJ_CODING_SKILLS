@@ -61,6 +61,9 @@ static const char DBJ_CLINTRO_GLYPHS
 };
 
 static inline void dbj_clintro_banner(void) {
+    /* two blank lines first, so the banner does not butt up against
+       the shell prompt that launched the app */
+    printf("\n\n");
     DBJ_LOOP_AS(row, DBJ_CLINTRO_GLYPH_ROWS) {
         DBJ_LOOP_AS(glyph, DBJ_CLINTRO_GLYPH_COUNT) {
             printf("%s  ", DBJ_CLINTRO_GLYPHS[glyph][row]);
