@@ -11,8 +11,9 @@ His techniques, kept here for comparison, and a dbj rework of the parts transfor
 | [yet-another-good-corelib.md](yet-another-good-corelib.md) | The original article, reformatted. Unmodified prose. |
 | [yet-another-good-corelib.c](yet-another-good-corelib.c) | The original runnable source, unmodified code, comments added. Reference only — do not develop here. |
 | [dbj-arena-hashmap-hashtrie.c](dbj-arena-hashmap-hashtrie.c) | 0.1 — the dbj rework, keys are `dbj_str_slice` views into the arena. |
-| [dbj_hash_string.h](dbj_hash_string.h) | 0.5 — the library types: `HashString`, `HashKey`, `HashMapElement`. |
-| [dbj-str-4-welons.c](dbj-str-4-welons.c) | 0.5 — ordinal-keyed map over those types, plus the nanobench. |
+| [dbj-str-4-welons.c](dbj-str-4-welons.c) | 0.5 — demo and benchmarks for the ordinal-keyed map. |
+
+The 0.5 map itself was decoupled into [../dbj_hashmap/](../dbj_hashmap/) — a library folder with its own readme, smoke test and Makefile. `dbj-str-4-welons.c` is now one of its users, nothing more.
 
 Article: <https://nullprogram.com/blog/2025/01/19/> · gist: <https://gist.github.com/skeeto/42d8a23871642696b6b8de30d9222328> · upstream is public domain (Unlicense).
 

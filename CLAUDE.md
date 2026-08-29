@@ -65,8 +65,12 @@ here instead.
   no `this`, no inheritance. The whole point of these examples is
   explicit tagged unions with an exhaustive `switch`.
 - Never add a `default` case to a `switch` over an enum/tag in these
-  examples — the missing `default` is intentional, so `-Wswitch -Werror`
-  can catch unhandled enum variants at compile time.
+  examples — the missing `default` is intentional, so `-Werror` can
+  catch unhandled enum variants at compile time. Build with
+  `-Wswitch-enum`, not merely the `-Wswitch` that `-Wall` implies:
+  `-Wswitch` falls silent as soon as a `default` is present, so it
+  cannot enforce this rule, while `-Wswitch-enum` names every unlisted
+  enum value either way.
 - Keep functions in the "storage + params in, result out" shape used
   throughout — no hidden state, no methods on structs.
 - Don't introduce abstractions, helper layers, or generalization beyond

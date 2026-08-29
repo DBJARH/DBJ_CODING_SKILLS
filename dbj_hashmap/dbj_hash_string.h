@@ -159,7 +159,7 @@ static inline size_t hash_string_len(const HashString *text)
 #define KeyType unsigned int
 #endif
 
-/* Three states, the same three a single SQL cell has:
+/* Three states:
 
        EMPTY   nothing was ever stored here
        NULL    a key is present, but it holds no value
@@ -208,9 +208,13 @@ static inline HashKey hash_key_empty(void)
     return (HashKey){.id = HK_EMPTY, .empty = {0}};
 }
 
-static inline HashKey hash_key_null(void)
+/* HK_NULL still remembers which key it is: the entry is present, so a
+   probe must be able to match it. Only HK_EMPTY has no key at all,
+   which is why NullKey is unused in practice -- kept so the union
+   states every case it can be in. */
+static inline HashKey hash_key_null(KeyType key)
 {
-    return (HashKey){.id = HK_NULL, .null = {0}};
+    return (HashKey){.id = HK_NULL, .val = {.key = key}};
 }
 
 static inline HashKey hash_key_value(KeyType key)
@@ -219,7 +223,7 @@ static inline HashKey hash_key_value(KeyType key)
 }
 
 /* ------------------------------------------------------------------
-   HashMapElement -- one slot
+   HashMapElement -- one slot in a hash/map
    ------------------------------------------------------------------ */
 
 /* A key and its value. The key's id says whether the value means
