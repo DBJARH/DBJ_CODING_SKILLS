@@ -3,31 +3,22 @@
     2026AUG29       (c) dbj@dbj.org
 
     dbj_hashmap.h -- flat, fixed-capacity, open-addressing hash map
-    with an ordinal key. Header only.
+    with an ordinal key. Header only, all static inline.
 
         #define DBJ_MAKERESULT_IMPLEMENTATION   // in exactly one .c
         #include <dbj_hashmap.h>
 
-    That one #define is inherited from toplevel/dbj_result.h, whose
-    factories are ordinary functions and so belong to a single
-    translation unit. Everything this header adds is `static inline`.
+    Two departures from the usual string-keyed table:
 
-    Two ways it departs from the usual string-keyed table:
+      1. The key is ordinal. KeyType is its own hash -- nothing to
+         store, nothing to compare, and no collision is possible,
+         because the key is itself rather than a digest of itself.
 
-      1. The key is ordinal, not text. KeyType is its own hash -- there
-         is no string to store and none to compare, and a collision
-         cannot happen, because the key is itself rather than a digest
-         of itself.
+      2. Absence is a state of the slot, not a sentinel value, so any
+         value at all is legal to store.
 
-      2. Absence is a state of the slot, not a sentinel value. A slot's
-         HashKey is EMPTY, NULL or VALUE -- the three states a single
-         SQL cell has. Nothing infers "unused" from all-zero bytes, so
-         any value at all is legal to store.
-
-    Every operation returns HashMapElementResult. A key that is simply
-    not there is still OK, carrying an element whose key.id is
-    HK_EMPTY: absence is an answer, not a failure. ERR is reserved for
-    the map being unable to answer at all -- capacity exhausted.
+    Every operation returns HashMapElementResult -- see
+    dbj_hashmap_element_result.h.
 
     Configure before including, or take the defaults:
 
@@ -41,15 +32,13 @@
 
 #include <stdint.h>
 
-/* Slot count. A plain constant, not 1 << N: the shift says nothing the
-   number does not, and the number is what a reader wants to see. It
-   must be a power of two -- the probe below relies on it. */
+/* Must be a power of two -- the probe relies on it. A plain constant,
+   not 1 << N: the shift says nothing the number does not. */
 #ifndef DBJ_HASHMAP_SLOTS
 #define DBJ_HASHMAP_SLOTS 1024
 #endif
 
-/* The index mask, and the count of high bits the probe step is taken
-   from. Both follow from the slot count; stated once, here. */
+/* Both follow from the slot count; stated once, here. */
 #define DBJ_HASHMAP_MASK (DBJ_HASHMAP_SLOTS - 1)
 #define DBJ_HASHMAP_EXP 10
 
@@ -58,19 +47,15 @@ typedef struct
     HashMapElement slots[DBJ_HASHMAP_SLOTS];
 } dbj_hashmap;
 
-/* Mix an ordinal key into a well-distributed 64-bit value.
+/* Consecutive keys (0, 1, 2, ...) land in consecutive slots -- fine
+   for the index, but it leaves the probe step correlated. splitmix64's
+   finaliser is cheap and makes the high bits, where the step comes
+   from, as good as the low ones.
 
-   Consecutive keys (0, 1, 2, ...) would otherwise land in consecutive
-   slots -- fine for the index, but it leaves the probe step below
-   correlated. This is splitmix64's finaliser: cheap, and it makes the
-   high bits, where the step comes from, as good as the low ones.
-
-   [[gnu::const]] is the strongest of the purity attributes: the result
-   depends on the arguments and nothing else -- no memory is read, so
-   repeated calls with the same arguments can be folded into one. Not
-   decoration: compiled with -O1 -fno-inline, two identical calls emit
-   a single `call` instruction. (The weaker [[gnu::pure]] is for a
-   function that does read memory but writes none.) */
+   [[gnu::const]]: the result depends on the arguments and nothing
+   else, so repeated calls fold into one. Not decoration -- at
+   -O1 -fno-inline two identical calls emit a single `call`. (The
+   weaker [[gnu::pure]] is for a function that reads memory.) */
 [[gnu::const]] static inline uint64_t dbj_hashmap_mix(KeyType key, uint64_t seed)
 {
     uint64_t hash = (uint64_t)key + seed;
@@ -82,31 +67,26 @@ typedef struct
     return hash;
 }
 
-/* Where a slot search ended. index means something only when found is
-   true; when the whole table has been visited with no match and no
-   free slot, found is false and the caller reports ERR. */
+/* index means something only when found is true. */
 typedef struct
 {
     bool found;
     ptrdiff_t index;
 } dbj_hashmap_probe;
 
-/* Probe for `key`: the slot already holding it, or the first slot free
-   to claim.
+/* The slot already holding `key`, or the first free to claim.
 
-   Double hashing: low bits index, high bits supply an odd step. Odd is
-   coprime with a power-of-two table size, so probing visits every slot
-   exactly once -- which is why the loop is bounded by the slot count.
-   That bound is the loop's real termination condition: without it, a
-   lookup in a *full* table (no match, no free slot) never returns, and
-   that hits reads as well as writes.
+   Double hashing: low bits index, high bits supply an odd step, which
+   is coprime with a power-of-two size and so visits every slot exactly
+   once. That is why the loop is bounded by the slot count -- it is the
+   real termination condition. Without it a lookup in a *full* table
+   (no match, no free slot) never returns, and that hits reads too.
 
-   The map's own address seeds the mix. ASLR randomises it, so an
-   attacker cannot precompute keys that collide, and no seed has to be
-   stored anywhere.
+   The map's own address seeds the mix, so ASLR randomises it and no
+   seed is stored.
 
    HK_NULL does not stop the search: a null-valued entry is a present
-   key, so probing continues past it exactly as past a value. */
+   key, so probing continues past it as it would past a value. */
 [[nodiscard]] static inline dbj_hashmap_probe dbj_hashmap_slot(const dbj_hashmap *map, KeyType key)
 {
     uint64_t hash = dbj_hashmap_mix(key, (uintptr_t)map);
@@ -136,15 +116,12 @@ typedef struct
     return (dbj_hashmap_probe){0}; /* every slot visited: the table is full */
 }
 
-/* Read. The map is not modified and the element comes back as a copy,
-   so the caller holds no pointer into the map.
+/* The element comes back as a copy, so the caller holds no pointer
+   into the map. A key that is not present is not a failure: OK, with
+   key.id HK_EMPTY. ERR means the map could not answer.
 
-   A key that is not present is not a failure: the result is OK and the
-   element's key.id is HK_EMPTY. ERR means the map could not answer.
-
-   [[nodiscard]] throughout the map: the returned result is the only
-   report that the map was full. Dropping it discards that, so a caller
-   who really means to must say so with (void). */
+   [[nodiscard]] throughout: the result is the only report that the map
+   was full, so dropping it must be spelled (void). */
 [[nodiscard]] static inline HashMapElementResult dbj_hashmap_get(const dbj_hashmap *map, KeyType key)
 {
     dbj_hashmap_probe probe = dbj_hashmap_slot(map, key);
@@ -155,8 +132,7 @@ typedef struct
     return HashMapElement_make_ok(map->slots[probe.index]);
 }
 
-/* Write a key with a value. Inserts, or replaces the value of a key
-   already present. Returns the element as stored. */
+/* Insert, or replace the value of a key already present. */
 [[nodiscard]] static inline HashMapElementResult dbj_hashmap_set(dbj_hashmap *map, KeyType key, HashString value)
 {
     dbj_hashmap_probe probe = dbj_hashmap_slot(map, key);
@@ -168,9 +144,8 @@ typedef struct
     return HashMapElement_make_ok(map->slots[probe.index]);
 }
 
-/* Write a key with no value -- the SQL NULL of this map. The key stays
-   present, so probing does not stop at it and a later get reports
-   HK_NULL rather than HK_EMPTY. */
+/* The SQL NULL of this map. The key stays present, so probing does not
+   stop at it and a later get reports HK_NULL, not HK_EMPTY. */
 [[nodiscard]] static inline HashMapElementResult dbj_hashmap_set_null(dbj_hashmap *map, KeyType key)
 {
     dbj_hashmap_probe probe = dbj_hashmap_slot(map, key);
@@ -182,7 +157,7 @@ typedef struct
     return HashMapElement_make_ok(map->slots[probe.index]);
 }
 
-/* How many slots hold a key -- HK_VALUE and HK_NULL alike. */
+/* Slots holding a key, HK_VALUE and HK_NULL alike. */
 [[nodiscard]] static inline ptrdiff_t dbj_hashmap_count(const dbj_hashmap *map)
 {
     ptrdiff_t used = 0;

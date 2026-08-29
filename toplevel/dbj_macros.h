@@ -41,4 +41,18 @@
          name_ < __DBJ_LOOP_END_##id_;                                \
          name_++)
 
+/*
+ dbj_countof(array) -- element count of a true array, as a signed size.
+
+ Only ever pass a real array. Given a pointer it silently yields
+ sizeof(pointer)/sizeof(*pointer), which compiles and is wrong -- the
+ classic C hazard this macro cannot protect against.
+
+ Signed (ptrdiff_t) rather than size_t on purpose: the result is
+ routinely compared against signed indices and lengths, and an unsigned
+ count turns `i < countof(a) - 1` into a wrap-around when the array is
+ empty.
+*/
+#define dbj_countof(array_) ((ptrdiff_t)(sizeof(array_) / sizeof(*(array_))))
+
 #endif // DBJ_MACROS_H

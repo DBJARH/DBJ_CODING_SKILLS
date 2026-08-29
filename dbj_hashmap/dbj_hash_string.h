@@ -2,29 +2,19 @@
 /*
     2026AUG28       (c) dbj@dbj.org
 
-    dbj_hash_string.h -- the value, key and element types for a
-    fixed-capacity hash map, all as discriminated unions.
+    dbj_hash_string.h -- the value, key and element types, all
+    discriminated unions. Nothing here knows about a particular map.
 
-    A library header, not demo code: nothing here knows about a
-    particular map, a particular size, or a particular application.
-    dbj-str-4-welons.c is one user of it.
-
-    Three types, in the order they compose:
-
-        HashString      the value. Any one dbj_str size, discriminated
-                        by type_id. A pure value type -- it carries no
-                        notion of being present or absent.
-
-        HashKey         the key, and with it the state of the slot:
-                        EMPTY, NULL or VALUE, the same three states a
-                        single SQL cell has. All slot behaviour lives
-                        here.
-
+        HashString      the value: any one dbj_str size, tagged by
+                        type_id. Never "empty" or "null" -- that is
+                        the key's business.
+        HashKey         the key, and the state of the slot: EMPTY,
+                        NULL or VALUE, the three states a single SQL
+                        cell has. All slot behaviour lives here.
         HashMapElement  one slot: a key and a value.
 
-    Nothing points anywhere. Every one of these is a value, copied in
-    and out, so no lifetime question arises and no arena has to outlive
-    anything the caller keeps.
+    Nothing points anywhere. All three are values, copied in and out,
+    so no lifetime question arises.
 */
 #include <dbj_required_compile_time.h>
 
@@ -35,11 +25,9 @@
 #include <stdio.h>  /* snprintf, for DBJ_MAKERESULT's err factory */
 #include <string.h>
 
-/* The dbj_str sizes a HashString can hold. The union is as large as
-   its largest member, so adding a size costs every HashString value.
-   Extending the list means extending HashStringTypeID and every switch
-   over it -- which is the point: no `default` case anywhere, so
-   -Wswitch -Werror names each site that has to be updated. */
+/* The union is as large as its largest member, so adding a size costs
+   every HashString value. No `default` case anywhere below, so
+   -Wswitch-enum -Werror names each site an added size must update. */
 DEFINE_DBJSTR_TYPE(str32, 32)
 DEFINE_DBJSTR_TYPE(str64, 64)
 DEFINE_DBJSTR_TYPE(str128, 128)
@@ -51,8 +39,7 @@ typedef enum
     DBJSTR128
 } HashStringTypeID;
 
-/* The value type. type_id says which size is live -- nothing more. A
-   HashString is never "empty" or "null"; that is the key's business. */
+/* type_id says which size is live -- nothing more. */
 typedef struct
 {
     HashStringTypeID type_id;
@@ -68,19 +55,16 @@ typedef struct
    HashString factories and accessors
    ------------------------------------------------------------------ */
 
-/* Content length. Capacity is sizeof(s.data); the content stops at the
-   first NUL, or at the end of the buffer when it is completely full. */
+/* Content stops at the first NUL, or at the end of a full buffer.
+   Capacity is sizeof(s.data). */
 #define dbj_str_len(text_) \
     (strnlen((const char *)(text_).data, sizeof((text_).data)))
 
-/* Pad a C string out to a full buffer of the given dbj_str type,
-   truncating what does not fit. All-zero is a valid empty value, so no
-   constructor is needed.
+/* Pad a C string out to the full buffer, truncating what does not fit.
 
-   One filler per size rather than one macro over all of them: a macro
-   able to declare a local of the parameter type needs a statement
-   expression, which is a GNU extension, and these are three short
-   functions. */
+   One filler per size, not one macro over all: declaring a local of a
+   macro parameter's type needs a statement expression, a GNU
+   extension, and these are three short functions. */
 #define DBJ_HASH_STRING_FILLER(type_)                      \
     [[nodiscard]] static inline type_ type_##_fill(const char *text) \
     {                                                      \
@@ -113,12 +97,9 @@ DBJ_HASH_STRING_FILLER(str128)
     return (HashString){.type_id = DBJSTR128, .val128 = str128_fill(text)};
 }
 
-/* Read the text out, whichever size is live. Returns a pointer into
-   the caller's own HashString -- valid exactly as long as that value
-   is, which is why HashString is always passed by pointer here and by
-   value everywhere else.
-
-   No `default` case: adding a HashStringTypeID must break this build. */
+/* Returns a pointer into the caller's own HashString, valid exactly as
+   long as that value is -- which is why this one takes a pointer while
+   everything else takes a value. */
 [[nodiscard]] static inline const char *hash_string_text(const HashString *text)
 {
     switch (text->type_id)
@@ -152,21 +133,18 @@ DBJ_HASH_STRING_FILLER(str128)
    HashKey -- the key, and the state of the slot holding it
    ------------------------------------------------------------------ */
 
-/* The key type is ordinal, not text: it is its own hash, so there is
-   no string to store and none to compare. An application redefines
-   this before including if it wants something else. */
+/* Ordinal, not text: the key is its own hash, so there is nothing to
+   store and nothing to compare. Redefine before including. */
 #ifndef KeyType
 #define KeyType unsigned int
 #endif
 
-/* Three states:
+/* EMPTY  nothing was ever stored here
+   NULL   a key is present, but holds no value
+   VALUE  a key with a value
 
-       EMPTY   nothing was ever stored here
-       NULL    a key is present, but it holds no value
-       VALUE   a key with a value
-
-   EMPTY and NULL carry no data. C has no zero-sized type, so each gets
-   a placeholder byte; the union is sized by ValidKey regardless. */
+   EMPTY and NULL carry no data, but C has no zero-sized type, so each
+   gets a placeholder byte. The union is sized by ValidKey anyway. */
 typedef struct
 {
     char unused;
@@ -200,20 +178,18 @@ typedef struct
     };
 } HashKey;
 
-/* Factories. A zeroed HashKey is HK_EMPTY, which is what makes a
-   zeroed map an empty map -- so hash_key_empty() exists for clarity at
-   call sites, not because anything needs it to initialise. That is
-   also why it is [[maybe_unused]]: nothing in this library calls it,
-   and that is correct rather than an oversight. */
+/* A zeroed HashKey is HK_EMPTY, which is what makes a zeroed map an
+   empty map -- so hash_key_empty() is for clarity at a call site, not
+   for initialising. Hence [[maybe_unused]]: nothing here calls it. */
 [[nodiscard, maybe_unused]] static inline HashKey hash_key_empty(void)
 {
     return (HashKey){.id = HK_EMPTY, .empty = {0}};
 }
 
-/* HK_NULL still remembers which key it is: the entry is present, so a
-   probe must be able to match it. Only HK_EMPTY has no key at all,
-   which is why NullKey is unused in practice -- kept so the union
-   states every case it can be in. */
+/* HK_NULL still carries its key: the entry is present, so a probe must
+   be able to match it. Only HK_EMPTY has no key -- which is why
+   NullKey is unused in practice, kept so the union states every
+   case. */
 [[nodiscard]] static inline HashKey hash_key_null(KeyType key)
 {
     return (HashKey){.id = HK_NULL, .val = {.key = key}};
@@ -228,9 +204,7 @@ typedef struct
    HashMapElement -- one slot in a hash/map
    ------------------------------------------------------------------ */
 
-/* A key and its value. The key's id says whether the value means
-   anything: on HK_EMPTY it does not, and on HK_NULL it is explicitly
-   absent. */
+/* The key's id says whether the value means anything. */
 typedef struct
 {
     HashKey key;

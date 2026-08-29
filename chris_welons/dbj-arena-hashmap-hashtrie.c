@@ -1,27 +1,16 @@
 /*
     2026AUG28       (c) dbj@dbj.org
 
-    dbj arena + hashmap + hashtrie
-    ------------------------------
-    A dbj rework of Chris Wellons' core-lib techniques:
+    dbj arena + hashmap + hashtrie -- a rework of Chris Wellons'
+    core-lib techniques. https://nullprogram.com/blog/2025/01/19/
 
-        https://nullprogram.com/blog/2025/01/19/
+    His unmodified original is beside this file as
+    yet-another-good-corelib.c. What was kept and dropped, and why, is
+    in readme.md.
 
-    The unmodified original sits beside this file as
-    yet-another-good-corelib.c -- reference only. What was kept, what
-    was dropped, and why, is in readme.md in this folder.
-
-    Three data structures, one memory strategy:
-
-        dbj_arena     bump allocator -- the only allocation in the
-                      program is the one block backing it
-        dbj_hashmap   flat, fixed-capacity, open-address table (MSI)
-        dbj_hashtrie  4-ary trie, unbounded, never resizes or rehashes
-
-    All three are usable in their all-bits-zero state, so none of them
-    has a constructor. That is the point of the design, not an accident
-    of it: an empty trie is a null pointer, an empty map is zeroed
-    memory, an empty slice is {0}.
+    All-bits-zero is a valid value of every type here, so none has a
+    constructor: an empty trie is a null pointer, an empty map is
+    zeroed memory, an empty dbj_strings is {0}.
 */
 #include <dbj_required_compile_time.h>
 
@@ -40,13 +29,11 @@
 #define DBJ_APP_NAME "dbj_arena_hashmap_hashtrie"
 #define DBJ_APP_VERSION "0.1.0"
 
-/* Element count of a true array -- never a pointer -- as a signed size. */
+/* Also in toplevel/dbj_macros.h; kept local so this file stands alone. */
 #define dbj_countof(array_) ((ptrdiff_t)(sizeof(array_) / sizeof(*(array_))))
 
-/* Allocate count objects of type type_ from arena_, zeroed and aligned.
-   The cast turns a type mismatch into a diagnostic, and sizeof/_Alignof
-   are taken from the type, so the caller cannot get the arithmetic
-   wrong. */
+/* The cast makes a type mismatch a diagnostic; sizeof/_Alignof come
+   from the type, so the caller cannot get the arithmetic wrong. */
 #define dbj_arena_new(arena_, count_, type_) \
     (type_ *)dbj_arena_alloc((arena_), (count_), sizeof(type_), _Alignof(type_))
 
@@ -54,33 +41,27 @@
    dbj_arena -- bump allocator
    ------------------------------------------------------------------- */
 
-/* The whole allocator: two pointers. `beg` is the bump cursor, `end`
-   the hard limit.
-
-   Passing a dbj_arena *by value* yields a scratch arena: the callee
-   bumps its own copy, and every allocation it made is gone the moment
-   it returns. That is the entire lifetime story -- there is no free. */
+/* Passed *by value* this is a scratch arena: the callee bumps its own
+   copy, and everything it allocated is gone when it returns. That is
+   the whole lifetime story -- there is no free. */
 typedef struct
 {
     char *beg;
     char *end;
 } dbj_arena;
 
-/* Factory: wrap an already-owned block. Caller keeps ownership of the
-   block; the arena only ever points into it. */
+/* The caller keeps the block; the arena only points into it. */
 static dbj_arena dbj_arena_make(char *block, ptrdiff_t size)
 {
     return (dbj_arena){block, block + size};
 }
 
-/* Bump `count` objects of `size` bytes off the front, aligned and
-   zeroed. Zeroed is what lets every structure here start valid at
+/* Zeroed, which is what lets every type here start valid at
    all-bits-zero.
 
-   TODO(post-1.0): this assert is where an OOM policy goes -- see
-   toplevel/dbj_result.h. Not used yet: a DBJ_RESULT carries two 512
-   byte char arrays, which is right at an application boundary and
-   quite wrong in an allocator this hot. */
+   TODO(post-1.0): the assert is where an OOM policy goes. A DBJ_RESULT
+   carries two 512-byte char arrays -- right at an app boundary, wrong
+   in an allocator this hot. */
 static void *dbj_arena_alloc(dbj_arena *arena, ptrdiff_t count, ptrdiff_t size, ptrdiff_t align)
 {
     /* bytes needed to round beg up to `align` -- align is a power of two */
@@ -95,13 +76,11 @@ static void *dbj_arena_alloc(dbj_arena *arena, ptrdiff_t count, ptrdiff_t size, 
 /* -------------------------------------------------------------------
    dbj_str_slice helpers that need an arena
    -------------------------------------------------------------------
-   The type itself, with equals and the seeded hash, lives in
-   toplevel/dbj_str_slice.h -- it has no opinion about allocation. What
-   follows is only the part that does. */
+   The type, equals and the seeded hash are in
+   toplevel/dbj_str_slice.h; only the allocating part is here. */
 
-/* Duplicate `text` into the arena. The `if (result.len)` guard is not
-   redundant: memcpy forbids a null source even for a zero count, and
-   `text` may be a zero slice. */
+/* The `if (result.len)` guard is not redundant: memcpy forbids a null
+   source even for a zero count, and `text` may be a zero slice. */
 static dbj_str_slice dbj_str_slice_copy(dbj_arena *arena, dbj_str_slice text)
 {
     dbj_str_slice result = text;
@@ -113,11 +92,9 @@ static dbj_str_slice dbj_str_slice_copy(dbj_arena *arena, dbj_str_slice text)
     return result;
 }
 
-/* head + tail, in place whenever head is already the most recent thing
-   in the arena: then tail's copy lands immediately behind it and only
-   the length has to grow. Otherwise head is relocated to the bump
-   pointer first. This is what makes repeated concatenation cost
-   O(total length) rather than O(n^2). */
+/* In place whenever head is the most recent thing in the arena:
+   tail's copy lands behind it and only the length grows. This is what
+   makes repeated concatenation O(total length), not O(n^2). */
 static dbj_str_slice dbj_str_slice_concat(dbj_arena *arena, dbj_str_slice head, dbj_str_slice tail)
 {
     if (!head.data || head.data + head.len != arena->beg)
@@ -128,9 +105,8 @@ static dbj_str_slice dbj_str_slice_concat(dbj_arena *arena, dbj_str_slice head, 
     return head;
 }
 
-/* printf straight into the arena, no intermediate buffer: the formatted
-   text is returned as a slice pointing at it. Only the bytes actually
-   written are committed -- the NUL vsnprintf appends is left sitting
+/* printf straight into the arena, no intermediate buffer. Only the
+   bytes written are committed -- the NUL vsnprintf appends is left
    past `beg`, uncommitted. */
 static dbj_str_slice dbj_arena_print(dbj_arena *arena, const char *fmt, ...)
 {
@@ -154,14 +130,11 @@ static dbj_str_slice dbj_arena_print(dbj_arena *arena, const char *fmt, ...)
 /* -------------------------------------------------------------------
    dbj_strings -- growable array of dbj_str_slice
    -------------------------------------------------------------------
-   One such type per element type: C has no templates, and the repo
-   forbids inventing a generic layer to fake them. {0} is a valid empty
-   dbj_strings.
+   One such type per element type: C has no templates. {0} is a valid
+   empty dbj_strings.
 
-   Wellons offers a second, macro-based mechanism (`push`) that works
-   on any data/len/cap struct. It is not here: it evaluates its
-   argument several times, and the repo's rule is no abstraction beyond
-   what the context requires. */
+   Wellons' `push` macro works on any data/len/cap struct and is not
+   here: it evaluates its argument several times. */
 typedef struct
 {
     dbj_str_slice *data;
@@ -182,14 +155,11 @@ static dbj_strings dbj_strings_clone(dbj_arena *arena, dbj_strings source)
     return result;
 }
 
-/* Append one string, growing if full. Takes dbj_strings by value and
-   returns the updated header, so callers write
+/* By value in, updated header out, so callers write
+   `words = dbj_strings_append(&arena, words, word)`.
 
-       words = dbj_strings_append(&arena, words, word);
-
-   Growth is the same in-place-if-possible trick as concat: storage
-   that already sits at the bump pointer is extended where it lies,
-   otherwise it is relocated first. Capacity doubles, from 4. */
+   Growth is concat's in-place-if-possible trick: storage already at
+   the bump pointer is extended where it lies. Doubles, from 4. */
 static dbj_strings
 dbj_strings_append(dbj_arena *arena, dbj_strings strings, dbj_str_slice value)
 {
@@ -211,13 +181,12 @@ dbj_strings_append(dbj_arena *arena, dbj_strings strings, dbj_str_slice value)
    dbj_hashmap -- flat, fixed capacity, open addressing (MSI)
    ------------------------------------------------------------------- */
 
-/* Mask-Step-Index: two parallel fixed arrays. A null key pointer marks
-   an empty slot, so a zeroed dbj_hashmap is an empty map.
+/* Mask-Step-Index: two parallel fixed arrays, a null key pointer
+   marking an empty slot.
 
-   Capacity is a hard ceiling. The map does not resize, and it does not
-   detect its own overflow -- insert past capacity and the probe loop
-   below spins forever. That ceiling is the trade being demonstrated;
-   dbj_hashtrie is the answer when the key count is unbounded. */
+   Capacity is a hard ceiling and overflow is not detected -- insert
+   past it and the probe loop spins forever. That is the trade being
+   shown; dbj_hashtrie is the answer for unbounded key counts. */
 enum
 {
     DBJ_HASHMAP_EXP = 10
@@ -229,18 +198,16 @@ typedef struct
     dbj_str_slice vals[1 << DBJ_HASHMAP_EXP];
 } dbj_hashmap;
 
-/* Lookup *and* insert: returns the address of the value slot for `key`,
-   claiming an empty slot when the key is absent. A null `.data` in the
-   returned slice therefore means "was not present" -- the caller
-   assigns through the pointer to insert.
+/* Lookup *and* insert: returns the address of the value slot,
+   claiming an empty one if the key is absent. A null `.data` in the
+   returned slice means "was not present"; the caller assigns.
 
-   Double hashing: low bits index, high bits (the well-mixed end of a
-   multiplicative hash) supply an odd step. Odd is coprime with a
-   power-of-two table size, so probing visits every slot.
+   Double hashing: low bits index, high bits (better mixed) supply an
+   odd step, coprime with a power-of-two size, so probing visits every
+   slot.
 
-   The map's own address is the hash seed. ASLR randomises it, so an
-   attacker cannot precompute colliding keys, and no seed has to be
-   stored or threaded through anywhere. */
+   The map's own address seeds the hash -- ASLR randomises it, so
+   colliding keys cannot be precomputed and no seed is stored. */
 static dbj_str_slice *dbj_hashmap_lookup(dbj_hashmap *map, dbj_str_slice key)
 {
     uint64_t hash = dbj_str_slice_hash(key, (uintptr_t)map);
@@ -265,12 +232,11 @@ static dbj_str_slice *dbj_hashmap_lookup(dbj_hashmap *map, dbj_str_slice key)
    dbj_hashtrie -- unbounded map, never resizes, never rehashes
    ------------------------------------------------------------------- */
 
-/* 4-ary trie node. The map *is* the root pointer: a null
-   dbj_hashtrie * is an empty map, which is why insertion takes a
-   dbj_hashtrie ** -- it has to be able to write the root itself.
+/* The map *is* the root pointer, which is why insertion takes a
+   dbj_hashtrie ** -- it must be able to write the root itself.
 
-   Nodes are never moved and never rehashed, so a pointer handed out by
-   a lookup stays valid for as long as the arena does. */
+   Nodes are never moved or rehashed, so a pointer handed out by a
+   lookup stays valid as long as the arena does. */
 typedef struct dbj_hashtrie dbj_hashtrie;
 struct dbj_hashtrie
 {
@@ -279,18 +245,14 @@ struct dbj_hashtrie
     dbj_str_slice value;
 };
 
-/* Lookup and insert, with the mode chosen by the arena argument:
-   nullptr means pure lookup (returns nullptr when absent), a real arena
-   means insert-if-missing.
+/* The arena argument picks the mode: nullptr is lookup-only, a real
+   arena inserts if missing. Two hash bits per level, from the top;
+   depth is O(log4 n) for well-distributed keys.
 
-   Two hash bits are consumed per level, taken from the top (h >> 62,
-   then h <<= 2). Depth is O(log4 n) for well-distributed keys.
-
-   The root node's address seeds the hash, which looks circular but is
-   not: the very first insert does not consult the hash at all -- it
-   simply becomes the root. By the second insert a seed exists. This
-   also means the trie survives being copied to another root variable,
-   which a fixed per-call seed would not. */
+   Seeding on the root's address looks circular but is not: the first
+   insert never consults the hash, it simply becomes the root, and by
+   the second a seed exists. It also survives the trie being copied to
+   another root variable, which a fixed per-call seed would not. */
 static dbj_str_slice *dbj_hashtrie_lookup(dbj_hashtrie **trie, dbj_str_slice key, dbj_arena *arena)
 {
     uint64_t seed = trie ? (uintptr_t)*trie : 0;
@@ -311,17 +273,13 @@ static dbj_str_slice *dbj_hashtrie_lookup(dbj_hashtrie **trie, dbj_str_slice key
     return &(*trie)->value;
 }
 
-/* Collect every key in the trie into one array, iteratively.
+/* Every key in the trie, iteratively: a lopsided trie -- hostile
+   keys, or bad luck north of 100k entries -- would exhaust the call
+   stack. Depth costs arena here instead of call frames.
 
-   Iteratively, not recursively: a lopsided trie -- hostile keys, or
-   simple bad luck somewhere north of 100k entries -- would exhaust the
-   call stack. Here depth costs arena instead of call frames.
-
-   `initial` is the trick worth noticing: a plain automatic array used
-   as the stack's first storage, so the common case leaves no litter in
-   the arena at all. Only if 16 frames prove too few does the append
-   above notice the stack is no longer at the bump pointer and relocate
-   it. */
+   `initial` is the trick worth noticing: an automatic array as the
+   stack's first storage, so the common case leaves no litter in the
+   arena. Only if 16 frames prove too few does push relocate it. */
 typedef struct
 {
     dbj_hashtrie *node;
@@ -399,9 +357,8 @@ static dbj_strings dbj_hashtrie_keys(dbj_hashtrie *trie, dbj_arena *arena)
 /* -------------------------------------------------------------------
    Demos
    -------------------------------------------------------------------
-   Each takes its dbj_arena *by value*. They therefore all start from
-   the same empty arena, none can see another's allocations, and none
-   of them frees anything. */
+   Each takes its dbj_arena *by value*, so all four start from the same
+   empty arena and none sees another's allocations. */
 
 enum
 {
@@ -459,9 +416,8 @@ static void dbj_slice_demo(dbj_arena scratch)
 
 static void dbj_concat_demo(dbj_arena scratch)
 {
-    /* four concats, all in place: each piece is appended straight
-       behind the previous one, because `pair` never stops being the
-       most recent thing in the arena */
+    /* four concats, all in place: `pair` never stops being the most
+       recent thing in the arena */
     dbj_str_slice pair = dbj_str_slice_copy(&scratch, DBJ_SS("PATH"));
     pair = dbj_str_slice_concat(&scratch, pair, DBJ_SS("="));
     pair = dbj_str_slice_concat(&scratch, pair, DBJ_SS("/usr/bin"));
@@ -490,9 +446,7 @@ int main(int argc, char *argv[static argc + 1])
         fprintf(stderr, "%s: cannot allocate %d bytes\n", DBJ_APP_NAME, DBJ_ARENA_SIZE);
         return EXIT_FAILURE;
     }
-    /* the one and only allocation in this program, and the one and
-       only thing that has to be released -- everything below is bump
-       allocated out of it and freed by scope */
+    /* the one allocation here, and the one thing to be released */
     defer { free(block); };
 
     dbj_arena arena = dbj_arena_make(block, DBJ_ARENA_SIZE);

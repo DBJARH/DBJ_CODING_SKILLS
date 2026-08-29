@@ -15,6 +15,7 @@ Decoupled out of [../chris_welons/](../chris_welons/), where it grew — see tha
 | [dbj_hashmap_element_result.h](dbj_hashmap_element_result.h) | `HashMapElementResult` and the `dbj_result_*` accessor macros. |
 | [dbj_hashmap.h](dbj_hashmap.h) | The map. |
 | [dbj_hashmap_smoketest.c](dbj_hashmap_smoketest.c) | 18 checks, each one a case the map got wrong at some point. |
+| [dbj_hashmap_benchmarks.c](dbj_hashmap_benchmarks.c) | Four `dbj_nanobench` measurements: get-hit, get-miss, probe alone, value construction. |
 
 ## Use
 
@@ -36,7 +37,7 @@ if (dbj_result_is_ok(found)) {
 }
 ```
 
-`make test` builds and runs the smoke test.
+`make test` builds and runs the smoke test; `make bench` the benchmarks. The benchmarks alone are built `-O2` — timing an unoptimised build measures something nobody ships.
 
 Only that one `#define` is needed, and it is inherited from [../toplevel/dbj_result.h](../toplevel/dbj_result.h), whose factories are ordinary functions. Everything these headers add is `static inline`, so there is no STB-style implementation switch of their own — that split solves a problem this code does not have.
 

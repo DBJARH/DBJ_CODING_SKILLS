@@ -11,9 +11,10 @@ His techniques, kept here for comparison, and a dbj rework of the parts transfor
 | [yet-another-good-corelib.md](yet-another-good-corelib.md) | The original article, reformatted. Unmodified prose. |
 | [yet-another-good-corelib.c](yet-another-good-corelib.c) | The original runnable source, unmodified code, comments added. Reference only — do not develop here. |
 | [dbj-arena-hashmap-hashtrie.c](dbj-arena-hashmap-hashtrie.c) | 0.1 — the dbj rework, keys are `dbj_str_slice` views into the arena. |
-| [dbj-str-4-welons.c](dbj-str-4-welons.c) | 0.5 — demo and benchmarks for the ordinal-keyed map. |
 
-The 0.5 map itself was decoupled into [../dbj_hashmap/](../dbj_hashmap/) — a library folder with its own readme, smoke test and Makefile. `dbj-str-4-welons.c` is now one of its users, nothing more.
+The 0.5 work has left this folder entirely: it lives in [../dbj_hashmap/](../dbj_hashmap/), a library folder with its own readme, smoke test, benchmarks and Makefile. `dbj-str-4-welons.c` is gone — its demo said nothing the smoke test does not assert, and its benchmarks moved next to what they measure.
+
+What stays here is the comparison, which is what this folder is for: Wellons' article, Wellons' source, and the one rework that keeps close to his design — string keys, `dbj_str_slice` views into the arena. Read it against [../dbj_hashmap/](../dbj_hashmap/) to see what the 0.5 decisions actually cost and bought.
 
 Article: <https://nullprogram.com/blog/2025/01/19/> · gist: <https://gist.github.com/skeeto/42d8a23871642696b6b8de30d9222328> · upstream is public domain (Unlicense).
 
@@ -153,7 +154,7 @@ The article's bonus section (ASLR-seeded hash) is folded in. Three lines, and it
 
 Benchmarks do not go in this file either — nanobench wants its own translation unit, and this file stays a readable reference. A separate benchmark file comes later, if wanted.
 
-→ **Half reversed in [0.5.6](#056-benchmarks-with-dbj_nanobench).** `ubenchtest` stays out. But "nanobench wants its own translation unit" was simply wrong — it needs `DBJ_NANOBENCH_IMPLEMENTATION` defined once, which a single-file program satisfies. The benchmarks are in [dbj-str-4-welons.c](dbj-str-4-welons.c) itself.
+→ **Half reversed in [0.5.6](#056-benchmarks-with-dbj_nanobench).** `ubenchtest` stays out. But "nanobench wants its own translation unit" was simply wrong — it needs `DBJ_NANOBENCH_IMPLEMENTATION` defined once, which a single-file program satisfies. The benchmarks now live in [../dbj_hashmap/dbj_hashmap_benchmarks.c](../dbj_hashmap/dbj_hashmap_benchmarks.c), next to what they measure.
 
 ### 13. Build
 

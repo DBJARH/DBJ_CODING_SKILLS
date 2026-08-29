@@ -1,12 +1,9 @@
 /*
     2026AUG29       (c) dbj@dbj.org
 
-    Smoke test for dbj_hashmap.h -- proves the folder stands on its own,
-    with no demo, no benchmark and no other folder involved.
-
-    Exits non-zero on the first failure, so `make && smoketest` is a
-    usable check. Every case here is one the map got wrong at some
-    point during 0.5.
+    Smoke test for dbj_hashmap.h. Exits non-zero on failure, so
+    `make test` is a usable check. Every case here is one the map got
+    wrong at some point during 0.5.
 */
 #include <dbj_required_compile_time.h>
 
@@ -31,9 +28,8 @@ static int failures = 0;
         }                                                \
     } while (0)
 
-/* The map is 1024 slots of HashMapElement -- too large for the stack
-   on some hosts, so file scope. Zeroed, which is what makes it an
-   empty map: HK_EMPTY is the zero of hk_id. */
+/* File scope: 1024 slots of HashMapElement is too much for the stack
+   on some hosts. Zeroed, which is what makes it an empty map. */
 static dbj_hashmap map;
 static dbj_hashmap full_map;
 
