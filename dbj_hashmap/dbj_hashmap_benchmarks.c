@@ -29,6 +29,16 @@
 #define DBJ_MAKERESULT_IMPLEMENTATION
 #include "dbj_hashmap.h"
 
+/* The generated names carry both type arguments. Shorthands here in the
+   benchmark only -- the map itself has no alias layer. */
+typedef hashmap_HashKey_HashString map_t;
+typedef hashmap_HashKey_HashString_elementResult map_result;
+
+#define hashmap_get hashmap_HashKey_HashString_get
+#define hashmap_set hashmap_HashKey_HashString_set
+#define hashmap_count hashmap_HashKey_HashString_count
+#define hashmap_slot hashmap_HashKey_HashString_slot
+
 #define DBJ_NANOBENCH_IMPLEMENTATION
 #include <dbj_nanobench.h>
 
@@ -46,22 +56,22 @@
    string is a courtesy to whoever is reading the terminal, so bump it
    by hand when the file changes meaningfully. */
 #define DBJ_APP_NAME "dbj_hashmap_benchmarks"
-#define DBJ_APP_VERSION "0.9.0"
+#define DBJ_APP_VERSION "1.0.0"
 
 #define DBJ_BENCH_KEYS 256
 #define DBJ_BENCH_PROBE 100
 #define DBJ_BENCH_ABSENT 9999
-#define DBJ_BENCH_ARENA (1 << 16)
+#define DBJ_BENCH_ARENA 65536
 
 /* Filled once, measured many times. File scope, not arena-allocated:
    the arena is not what is being measured. */
-static dbj_hashmap bench_map;
-static dbj_hashmap strkey_map;
-static dbj_hashmap slice_map;
+static map_t bench_map;
+static map_t strkey_map;
+static map_t slice_map;
 
 /* The insert benchmark zeroes its map on every run, so it gets one of
    its own -- bench_map is filled once and read by the lookups above. */
-static dbj_hashmap insert_map;
+static map_t insert_map;
 
 /* The block the slice keys' text lives in. File scope so it outlives
    the map, which is the lifetime the slice kind requires; the arena
@@ -82,14 +92,14 @@ static char slice_arena_block[DBJ_BENCH_ARENA];
    100,000th key; this map has 1024 slots and answers ERR past them.
    Refusing to grow is most of why it is quicker. Same load, different
    promises. */
-[[nodiscard]] static double fill_ns_per_key(dbj_hashmap *map, HashString value)
+[[nodiscard]] static double fill_ns_per_key(map_t *map, HashString value)
 {
-    memset(map, 0, sizeof *map); /* a zeroed map is an empty map */
+    dbj_hashmap_clear(map); /* a zeroed map is an empty map */
 
     uint64_t started = DBJ_NB_now_ns();
     for (KeyOrdinal key = 0; key < DBJ_BENCH_KEYS; key++)
     {
-        (void)dbj_hashmap_set(map, hash_key_ordinal(key), value);
+        (void)hashmap_set(map, hash_key_ordinal(key), value);
     }
     uint64_t elapsed = DBJ_NB_now_ns() - started;
 
@@ -97,7 +107,7 @@ static char slice_arena_block[DBJ_BENCH_ARENA];
 }
 
 /* Reports the way DBJ_MEASURE does, so the line sits with the others. */
-static void bench_insert(dbj_hashmap *map)
+static void bench_insert(map_t *map)
 {
     HashString value = hash_string_32("v");
 
@@ -133,21 +143,21 @@ int main(int argc, char *argv[static argc + 1])
 
     for (KeyOrdinal key = 0; key < DBJ_BENCH_KEYS; key++)
     {
-        (void)dbj_hashmap_set(&bench_map, hash_key_ordinal(key), hash_string_32("v"));
+        (void)hashmap_set(&bench_map, hash_key_ordinal(key), hash_string_32("v"));
     }
     printf("%td of %d slots filled\n\n",
-           dbj_hashmap_count(&bench_map), DBJ_HASHMAP_SLOTS);
+           hashmap_count(&bench_map), DBJ_HASHMAP_SLOTS);
 
-    DBJ_BENCH("hashmap get, key present", HashMapElementResult, {
-        DBJ_NB_val = dbj_hashmap_get(&bench_map, hash_key_ordinal(DBJ_BENCH_PROBE));
+    DBJ_BENCH("hashmap get, key present", map_result, {
+        DBJ_NB_val = hashmap_get(&bench_map, hash_key_ordinal(DBJ_BENCH_PROBE));
     });
 
-    DBJ_BENCH("hashmap get, key absent", HashMapElementResult, {
-        DBJ_NB_val = dbj_hashmap_get(&bench_map, hash_key_ordinal(DBJ_BENCH_ABSENT));
+    DBJ_BENCH("hashmap get, key absent", map_result, {
+        DBJ_NB_val = hashmap_get(&bench_map, hash_key_ordinal(DBJ_BENCH_ABSENT));
     });
 
     DBJ_BENCH("hashmap probe only", dbj_hashmap_probe, {
-        DBJ_NB_val = dbj_hashmap_slot(&bench_map, hash_key_ordinal(DBJ_BENCH_PROBE));
+        DBJ_NB_val = hashmap_slot(&bench_map, hash_key_ordinal(DBJ_BENCH_PROBE));
     });
 
     DBJ_BENCH("hash_string_32 fill", HashString, {
@@ -163,19 +173,19 @@ int main(int argc, char *argv[static argc + 1])
         char value[32];
         snprintf(key, sizeof(key), "key%d", i);
         snprintf(value, sizeof(value), "value%d", i);
-        (void)dbj_hashmap_set(&strkey_map, hash_key_string(key), hash_string_32(value));
+        (void)hashmap_set(&strkey_map, hash_key_string(key), hash_string_32(value));
     }
 
-    DBJ_BENCH("string key get, key present", HashMapElementResult, {
-        DBJ_NB_val = dbj_hashmap_get(&strkey_map, hash_key_string("key100"));
+    DBJ_BENCH("string key get, key present", map_result, {
+        DBJ_NB_val = hashmap_get(&strkey_map, hash_key_string("key100"));
     });
 
-    DBJ_BENCH("string key get, key absent", HashMapElementResult, {
-        DBJ_NB_val = dbj_hashmap_get(&strkey_map, hash_key_string("nosuchkey"));
+    DBJ_BENCH("string key get, key absent", map_result, {
+        DBJ_NB_val = hashmap_get(&strkey_map, hash_key_string("nosuchkey"));
     });
 
     DBJ_BENCH("string key hash alone", uint64_t, {
-        DBJ_NB_val = hash_key_hash(hash_key_string("key100"));
+        DBJ_NB_val = HashKey_hash(hash_key_string("key100"));
     });
 
     /* Slice keys, same data again, the text held in an arena. A slice
@@ -193,21 +203,30 @@ int main(int argc, char *argv[static argc + 1])
         snprintf(value, sizeof(value), "value%d", i);
 
         /* the text is copied into the arena, which outlives the map --
-           `text` above is a stack buffer and would not do */
-        (void)dbj_hashmap_set(&slice_map, hash_key_slice_copy(&arena, text),
+           `text` above is a stack buffer and would not do. The arena is
+           sized for the whole run, so an ERR here means the benchmark
+           is misconfigured, not that the map is slow. */
+        HashKeyResult key = hash_key_slice_copy(&arena, text);
+        if (dbj_result_is_err(key))
+        {
+            fprintf(stderr, "%s: %s\n", dbj_result_location(HashKey, key),
+                    dbj_result_message(HashKey, key));
+            return 1;
+        }
+        (void)hashmap_set(&slice_map, dbj_result_hash_key(key),
                               hash_string_32(value));
     }
 
-    DBJ_BENCH("slice key get, key present", HashMapElementResult, {
-        DBJ_NB_val = dbj_hashmap_get(&slice_map, hash_key_slice(DBJ_SS("key100")));
+    DBJ_BENCH("slice key get, key present", map_result, {
+        DBJ_NB_val = hashmap_get(&slice_map, hash_key_slice(DBJ_SS("key100")));
     });
 
-    DBJ_BENCH("slice key get, key absent", HashMapElementResult, {
-        DBJ_NB_val = dbj_hashmap_get(&slice_map, hash_key_slice(DBJ_SS("nosuchkey")));
+    DBJ_BENCH("slice key get, key absent", map_result, {
+        DBJ_NB_val = hashmap_get(&slice_map, hash_key_slice(DBJ_SS("nosuchkey")));
     });
 
     DBJ_BENCH("slice key hash alone", uint64_t, {
-        DBJ_NB_val = hash_key_hash(hash_key_slice(DBJ_SS("key100")));
+        DBJ_NB_val = HashKey_hash(hash_key_slice(DBJ_SS("key100")));
     });
 
     bench_insert(&insert_map);

@@ -72,6 +72,12 @@ as the rest of this repo's headers.
             } T_##_OK;                                                                         \
             struct                                                                             \
             {                                                                                  \
+                /* which kind of failure, in whatever enum the header                          \
+                   that made this result type defines. 0 means the                             \
+                   maker did not say. Only meaningful together with                            \
+                   the result type -- code 1 of one type has nothing                           \
+                   to do with code 1 of another. */                                            \
+                unsigned short code;                                                           \
                 char location[DBJ_RESULT_LOCATION_SIZE]; /* error origin, e.g. via __func__ */ \
                 char message[DBJ_RESULT_MESSAGE_SIZE];   /* json in the future, but not now */ \
             } T_##_ERR;                                                                        \
@@ -93,16 +99,24 @@ as the rest of this repo's headers.
             .T_##_OK = {.my_value = my_value_}};                                               \
     }                                                                                          \
                                                                                                \
-    T_##Result T_##_make_err(const char *location_, const char *message)
+    T_##Result T_##_make_err(const char *location_, const char *message);                       \
+                                                                                               \
+    /* The same, plus which kind of failure it was. _make_err is this                           \
+       with code 0 -- a caller that has nothing useful to put in the                            \
+       code says nothing rather than inventing a value. */                                      \
+    T_##Result T_##_make_err_coded(const char *location_, const char *message,                  \
+                                   unsigned short code_)
 
 #define DBJ_MAKERESULT_IMPL(T_)                                                                      \
     /* (void) on each snprintf result, not merely the assert: with                                   \
        NDEBUG the assert vanishes and the variable is left unused,                                   \
        which -Werror=unused-variable rejects. The snprintf call                                      \
        itself is outside the assert, so it survives either way. */                                   \
-    T_##Result T_##_make_err(const char *location_, const char *message)                             \
+    T_##Result T_##_make_err_coded(const char *location_, const char *message,                       \
+                                   unsigned short code_)                                             \
     {                                                                                                \
         T_##Result r_ = (T_##Result){.tag = DBJ_RESULT_ERR};                                         \
+        r_.T_##_ERR.code = code_;                                                                    \
         int loc_rez_ = snprintf(r_.T_##_ERR.location, sizeof r_.T_##_ERR.location, "%s", location_); \
         assert(loc_rez_ >= 0 && (size_t)loc_rez_ < sizeof r_.T_##_ERR.location);                     \
         (void)loc_rez_;                                                                              \
@@ -110,6 +124,11 @@ as the rest of this repo's headers.
         assert(msg_rez_ >= 0 && (size_t)msg_rez_ < sizeof r_.T_##_ERR.message);                      \
         (void)msg_rez_;                                                                              \
         return r_;                                                                                   \
+    }                                                                                                \
+                                                                                                     \
+    T_##Result T_##_make_err(const char *location_, const char *message)                             \
+    {                                                                                                \
+        return T_##_make_err_coded(location_, message, 0);                                           \
     }
 
 #ifdef DBJ_MAKERESULT_IMPLEMENTATION
@@ -122,3 +141,30 @@ as the rest of this repo's headers.
 #define DBJ_MAKERESULT(T_) \
     DBJ_MAKERESULT_DECL(T_)
 #endif
+
+/* ------------------------------------------------------------------
+   Reading any result
+
+   These four touch only `tag` and the ERR arm, both of which every
+   generated result type has under the same names. So they are written
+   once here rather than once per type -- a header that makes a result
+   type only has to add the accessors for its own OK arm, whose member
+   name it alone knows.
+   ------------------------------------------------------------------ */
+
+#define dbj_result_is_ok(result_) ((result_).tag == DBJ_RESULT_OK)
+
+#define dbj_result_is_err(result_) ((result_).tag == DBJ_RESULT_ERR)
+
+/* The ERR arm, valid only after dbj_result_is_err(). Both are
+   fixed-size char arrays, so safe to print with %s. Named T_##_ERR in
+   the struct, so these take the type as well -- there is no way to
+   spell "whichever arm it is" in C. */
+#define dbj_result_location(T_, result_) ((result_).T_##_ERR.location)
+
+#define dbj_result_message(T_, result_) ((result_).T_##_ERR.message)
+
+/* Which kind of failure, in the enum the header that made this result
+   type defines. 0 when it did not say. This is the one a caller can
+   switch on -- location and message are for a human. */
+#define dbj_result_code(T_, result_) ((result_).T_##_ERR.code)

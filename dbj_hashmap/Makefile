@@ -7,6 +7,7 @@ CFLAGS    := -std=gnu23 -Wall -Wextra -Wswitch-enum -Werror -I ../toplevel -I .
 # output goes; falls back to ../builds (repo root) if unset.
 BUILD_DIR := $(if $(DBJ_BUILDS),$(DBJ_BUILDS),../builds)
 SMOKE_TARGET := $(BUILD_DIR)/dbj_hashmap_smoketest
+MAKE_TARGET  := $(BUILD_DIR)/dbj_make_hashmap_smoketest
 BENCH_TARGET := $(BUILD_DIR)/dbj_hashmap_benchmarks
 
 # Windows/MinGW ships plain gcc.exe (gcc 15+); Linux distros still default
@@ -21,14 +22,13 @@ endif
 
 .PHONY: all clean test bench
 
-all: $(SMOKE_TARGET) $(BENCH_TARGET)
+all: $(SMOKE_TARGET) $(MAKE_TARGET) $(BENCH_TARGET)
 
 $(BUILD_DIR):
 	$(MKDIR)
 
 HEADERS := dbj_hashmap.h \
-           dbj_hashmap_element_result.h \
-           dbj_hashmap_element.h \
+           dbj_make_hashmap.h \
            dbj_hash_key.h \
            dbj_hash_string.h \
            dbj_arena.h \
@@ -40,14 +40,22 @@ HEADERS := dbj_hashmap.h \
 $(SMOKE_TARGET): dbj_hashmap_smoketest.c $(HEADERS) | $(BUILD_DIR)
 	$(CC) $(CFLAGS) -o $(SMOKE_TARGET) dbj_hashmap_smoketest.c
 
+# dbj_make_hashmap.h depends on nothing in this folder but dbj_result.h --
+# that is the point of it.
+$(MAKE_TARGET): dbj_make_hashmap_smoketest.c dbj_make_hashmap.h \
+                ../toplevel/dbj_result.h ../toplevel/dbj_required_compile_time.h \
+                | $(BUILD_DIR)
+	$(CC) $(CFLAGS) -o $(MAKE_TARGET) dbj_make_hashmap_smoketest.c
+
 # -O2 for the benchmarks only: timing an unoptimised build measures
 # something nobody ships.
 $(BENCH_TARGET): dbj_hashmap_benchmarks.c $(HEADERS) \
                  ../toplevel/dbj_nanobench.h ../toplevel/dbj_clintro.h | $(BUILD_DIR)
 	$(CC) $(CFLAGS) -O2 -o $(BENCH_TARGET) dbj_hashmap_benchmarks.c
 
-test: $(SMOKE_TARGET)
+test: $(SMOKE_TARGET) $(MAKE_TARGET)
 	$(SMOKE_TARGET)
+	$(MAKE_TARGET)
 
 bench: $(BENCH_TARGET)
 	$(BENCH_TARGET)

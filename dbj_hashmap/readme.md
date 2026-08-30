@@ -1,5 +1,5 @@
 ---
-version: 1.0
+version: 1.3
 ---
 
 # dbj_hashmap r&d
@@ -17,13 +17,13 @@ Two things make it perhaps unusual.
 
 | File | Description |
 |---|---|
-| [dbj_arena.h](dbj_arena.h) | A very simple way of handing out memory. You give it one big block up front, and it slices pieces off the front as you ask for them. You never free a single piece — you throw the whole block away at the end. |
-| [dbj_hash_key.h](dbj_hash_key.h) | Everything to do with keys. It says what a key is allowed to be — a number, a short word, or a pointer to a word — and whether a slot is empty, holds a key with no value, or holds a key with a value. It also has the only two things the map ever asks of a key: turn yourself into a number, and compare yourself with another key. |
+| [dbj_arena.h](dbj_arena.h) | A very simple way of handing out memory. You give it one big block up front, and it slices pieces off the front as you ask for them. You never free a single piece — you throw the whole block away at the end, and when the block is used up it tells you so instead of guessing. |
+| [dbj_hash_key.h](dbj_hash_key.h) | Everything to do with keys. It says what a key is allowed to be — a number, a short word, or a pointer to a word. It also has the only two things the map ever asks of a key: turn yourself into a number, and compare yourself with another key. |
 | [dbj_hash_string.h](dbj_hash_string.h) | The values you store. Each one is a fixed-size piece of text — 32, 64 or 128 bytes. Anything longer is cut off. |
-| [dbj_hashmap_element.h](dbj_hashmap_element.h) | One key and one value, side by side. This is what a lookup hands back to you. It is not how the map keeps things internally. |
-| [dbj_hashmap_element_result.h](dbj_hashmap_element_result.h) | What every operation actually returns: either an answer, or an explanation of why there is no answer. Also the short macros for asking which of the two you got, and for getting the answer out. |
-| [dbj_hashmap.h](dbj_hashmap.h) | The map itself. Put a value in, get a value back, count what is in there. If you only want to use this thing, this is the one file to read. |
+| [dbj_make_hashmap.h](dbj_make_hashmap.h) | The map machinery, for any key type and any value type. `DBJ_MAKE_HASHMAP(K, V)` writes out a whole map for that pair — the storage, the search, and what a lookup hands back. It knows nothing about keys or values in particular. |
+| [dbj_hashmap.h](dbj_hashmap.h) | One line: `DBJ_MAKE_HASHMAP(HashKey, HashString)`. That is the map this folder is about — the two files above, chosen as the pair. |
 | [dbj_hashmap_smoketest.c](dbj_hashmap_smoketest.c) | 33 small tests. Every one of them is a bug the map really did have at some point. Change the map, run this. |
+| [dbj_make_hashmap_smoketest.c](dbj_make_hashmap_smoketest.c) | The same machinery with plain C types instead — a `short → bool` map and an `unsigned → double` map, in one file, sharing nothing. |
 | [dbj_hashmap_benchmarks.c](dbj_hashmap_benchmarks.c) | Measures how long each operation takes, for all three kinds of key. Run it with `make bench`. |
 
 ## Use
@@ -32,118 +32,169 @@ Two things make it perhaps unusual.
 #define DBJ_MAKERESULT_IMPLEMENTATION   /* in exactly one .c file */
 #include <dbj_hashmap.h>
 
-static dbj_hashmap map;                 /* all zeros means empty; no setup call */
+/* the names are built from the two types the map was made of */
+typedef hashmap_HashKey_HashString map_t;
+#define ELEM DBJ_HASHMAP_ELEMENT_TYPE(HashKey, HashString)
 
-dbj_hashmap_set(&map, hash_key_ordinal(42), hash_string_32("forty two"));
+static map_t map;                       /* all zeros means empty; no setup call */
 
-HashMapElementResult found = dbj_hashmap_get(&map, hash_key_ordinal(42));
+hashmap_HashKey_HashString_set(&map, hash_key_ordinal(42), hash_string_32("forty two"));
+
+hashmap_HashKey_HashString_elementResult found =
+    hashmap_HashKey_HashString_get(&map, hash_key_ordinal(42));
+
 if (dbj_result_is_ok(found)) {
-    switch (dbj_result_state(found)) {      /* HK_EMPTY | HK_NULL | HK_VALUE */
-    case HK_VALUE: puts(hash_string_text(&dbj_result_value(found))); break;
-    case HK_NULL:  /* the key is there, but has no value */ break;
-    case HK_EMPTY: /* the key is not in the map */          break;
+    switch (dbj_hashmap_state(ELEM, found)) {
+    case DBJ_SLOT_VALUE: puts(hash_string_text(&dbj_hashmap_value(ELEM, found))); break;
+    case DBJ_SLOT_NULL:  /* the key is there, but has no value */ break;
+    case DBJ_SLOT_EMPTY: /* the key is not in the map */          break;
     }
 }
 ```
 
 Three things in that snippet are worth naming.
 
-A `dbj_hashmap` full of zero bytes is a valid empty map. There is no constructor to call and no way to forget to call one.
+1. A `dbj_hashmap` full of zero bytes is a valid empty map. There is no need for a  constructor to call and no way to forget to call one.
 
-`dbj_result_is_ok` asks a different question from "did you find it". It asks whether the map could answer at all. A key that simply is not in the map is a perfectly successful lookup — you get `OK`, and the state is `HK_EMPTY`. The only way to get `ERR` is a full map. More on that under [It never grows](#it-never-grows).
+2. dbj_result_is_ok` answers  a different question from "did you find it".  A key that simply is not in the map is a perfectly successful lookup — you get `OK`, and the state is `DBJ_SLOT_EMPTY`. The only way to get `ERR` is a map overflow: when you try to inser beyond the given capacity. More on that under [It never grows](#it-never-grows).
 
-The one `#define` goes in exactly one `.c` file in your program. It is a convention borrowed from [../toplevel/dbj_result.h](../toplevel/dbj_result.h): that header declares a function everywhere and defines it once, and the `#define` picks which file gets the definition. See [translation unit](#vocabulary). Nothing else here needs it — everything else is [`static inline`](#vocabulary).
+3. The one `#define DBJ_MAKERESULT_IMPLEMENTATION` goes in exactly one `.c` file in your program.. See the [translation unit](#vocabulary). 
 
-`make test` builds and runs the smoke test. `make bench` builds and runs the timings. The timings alone are built with `-O2`, because timing an unoptimised build measures something nobody ships.
 
-## The key can be three things
+`make test` builds and runs the smoke test. `make bench` builds and runs the timings.
 
-| kind | how you make one | holds its own text? | length limit | what it costs |
+## This hash map key can be One of the three things
+
+| kind | how you make one | holds its own text? | length limit | explanation |
 |---|---|---|---|---|
-| `KT_ORDINAL` | `hash_key_ordinal(n)` | n/a | — | nothing; the number is its own hash |
-| `KT_STRING` | `hash_key_string("text")` | yes | 32 bytes | hashes all 32 bytes every time |
-| `KT_SLICE` | `hash_key_slice(slice)` | no | none | hashes only the bytes that are there |
+| `KT_ORDINAL` | `hash_key_ordinal(n)` | n/a | — | **Ordinal** is a fancy name for a plain number. It is its own [hash](#vocabulary). The cheapest kind, and what every other kind is measured against. You are responsible for it being unique. |
+| `KT_STRING` | `hash_key_string("text")` | yes | 32 bytes | **Owned string** — the key carries its text with it, in a fixed 32-byte array. Anything longer is cut off, so two keys sharing their first 32 bytes are the same key. Safe, as long as your keys are under 32 bytes. Hashes all 32 every time, whatever the real length. |
+| `KT_SLICE` | `hash_key_slice(slice)` | no | none | **Slice** — a pointer and a length, 16 bytes, aimed at text stored somewhere else. Nothing is copied and there is no length limit, so it is faster than the owned string. The catch is lifetime: the text must outlive the map. |
 
-**Ordinal** — a plain number. It is its own [hash](#vocabulary), so there is nothing to compute and nothing to compare byte by byte. Two different numbers can never collide, because the key is itself rather than a summary of itself. This is the cheapest kind, and the floor everything else is measured against.
-
-**Owned string** — the key carries its text with it, in a fixed 32-byte buffer. Anything longer is cut off. That has a consequence worth stating plainly: two keys that share their first 32 bytes are the same key.
-
-**Slice** — a pointer and a length, 16 bytes, pointing at text stored somewhere else. Nothing is copied and there is no length limit. The catch is lifetime: the text must outlive the map. Point a slice at a string literal (those live forever), or copy the text into an [arena](#vocabulary):
+A slice needs its text to live somewhere that will exist after map does not. An "arena" does that:
 
 ```c
+// arena storage is in a static global variable
+// it will leave as long as app lives
 static char block[4096];
+// single arena per application
 dbj_arena arena = dbj_arena_make(block, sizeof(block));
-
-HashKey key = hash_key_slice_copy(&arena, some_transient_text);
+// usage example -- an arena can run out, so this returns a result
+HashKeyResult key = hash_key_slice_copy(&arena, some_transient_text);
+if (dbj_result_is_ok(key)) {
+    (void)hashmap_HashKey_HashString_set(&map, dbj_result_hash_key(key), some_value);
+}
 ```
 
-Point a slice at a local buffer instead and the key turns to garbage the moment that function returns. Nothing in the code can catch that for you.
+Point a slice at a local buffer instead and the key turns to garbage the moment that function returns. 
 
-Keys of different kinds are never equal, whatever their bytes say. A `KT_STRING` and a `KT_SLICE` holding the same text are two different keys. That is deliberate: one owns its text and one borrows it, and quietly treating them as the same would hide the difference that matters.
+
+Keys of different kinds are never equal, whatever their bytes say. A `KT_STRING` and a `KT_SLICE` holding the same text are two different keys. That is deliberate.
 
 ### How the map stays ignorant of all this
 
 The map never looks inside a key. It calls exactly two functions:
 
 ```c
-uint64_t hash_key_hash(HashKey key);            /* turn a key into a number */
-bool     hash_key_equal(HashKey lhs, HashKey rhs);  /* are these the same key? */
+uint64_t HashKey_hash(HashKey key);                /* turn a key into a number */
+bool     HashKey_equal(HashKey lhs, HashKey rhs);  /* are these the same keys? */
 ```
 
-Both are a `switch` over the kind tag. Add a fourth kind and the compiler points at both of them and refuses to build until you have written the two new branches. That is the entire extension mechanism — see [Why no `default` case](#why-no-default-case).
+The names are not a style choice. `DBJ_MAKE_HASHMAP(K, V)` builds them out of the key type's own name, so any type used as a key must supply `K_hash` and `K_equal`. There is no default and no shortcut for small types: no type is its own hash. The bits of a `short` are not a hash of that `short`, they *are* the `short`.
 
-## Three states, not two
+## Core logic: cell is in one of the possibe three states
 
 A slot in the map is in one of three states:
 
-- `HK_EMPTY` — nothing was ever put here.
-- `HK_NULL` — a key is here, but it has no value.
-- `HK_VALUE` — a key is here, with a value.
+- `DBJ_SLOT_EMPTY` — nothing was ever put here.
+- `DBJ_SLOT_NULL` — a key is here, but it has no value.
+- `DBJ_SLOT_VALUE` — a key is here, with a legal value.
 
-These are the three states a single cell in a SQL table has, and there will never be a fourth.
+The state belongs to the slot, not to the key and not to the value. It used to hang off the key, which was wrong in a way that only showed once the map became a macro: a key type has no business knowing it is in a table.
 
-Two of these are usually rolled into one, and that is the bug this design avoids. If "empty" were signalled by the value being zero, you could never store a zero. Here the state lives beside the value instead of inside it, so every possible value is storable.
+This is database logic: These are the three states, one of which, a single cell in a table can have.
 
-There are no `assert`s anywhere. A failure is returned, not shouted about. `dbj_arena_alloc` follows the same rule and returns `nullptr` when it runs out.
+Two of these are usually rolled into one, and that is the fault in thinking, this design avoids. If "empty" were signalled by the value being zero, you could never store a zero.   Leaving the "zero" or null to have a role in some application logic.
+
+
+
+
+
 
 ## It never grows
 
-`DBJ_HASHMAP_SLOTS` — 1024 by default, and it must be a [power of two](#vocabulary) — is fixed at compile time. The map never reallocates. Past the last free slot, `dbj_hashmap_set` returns `ERR`.
+There are no `assert`s anywhere. A failure is returned, not shouted about — and it is returned in a form the caller can act on rather than merely detect. See [Failure is a value](#failure-is-a-value).
 
-This is not laziness, it is the one thing that makes the search terminate. Looking a key up means walking from slot to slot until you find the key or find an empty slot — see [probing](#vocabulary). In a *completely full* map there is neither, so without a hard bound on the walk, a lookup for a missing key spins forever. That is a hang on a *read*, which is the nastier half of it. The bound is the slot count. The smoke test covers it.
 
-Practical advice: keep the map well under half full. Open addressing gets slower as it fills, and past full it stops answering.
 
-One cost worth knowing. A `HashKey` is as big as its largest possible kind, so every slot pays for the 32-byte string key even in a map that only ever holds numbers. That is the price of having one map type that handles all key kinds.
+The value called `DBJ_HASHMAP_SLOTS` is 1024 by default, and it must be a [power of two](#vocabulary) ; it is fixed at compile time.  The consequence is the map never reallocates to self expand. That is a fast implementation with the trade of. If you try to use it, past the last free slot, the map's `_set` hands back a result in an error state — saying the map is full, and where — rather than a magic value you might mistake for an answer. See [Failure is a value](#failure-is-a-value).
 
-## How it is laid out in memory
+This is not laziness, it is the one thing that makes the search terminate when it reached "the end". Looking a key up means walking from slot to slot until you find the key or find an empty slot — see [probing](#vocabulary).Or there are no more slots in a *completely full* map. 
 
-This section is about speed. Skip it if you only want to use the map — the behaviour is the same either way.
+Practical advice: keep the map well under half full. Addressing gets slower as it fills.
 
-The obvious layout is one array of `HashMapElement`, each holding a key and a value together. That is what this map used to do, and it was slow for a reason that is invisible in the source.
+## Failure is a value
 
-A `HashMapElement` is 184 bytes, and 132 of those are the value. But looking a key up only ever reads the key part. So the search jumped 184 bytes at a time through 184 KB of memory to look at a few bytes of tag, and every jump dragged a value it did not care about into the [cache](#vocabulary) alongside it.
+Anything that can fail returns a **result**. A result is in one of two shapes for two states:
+
+- **OK** — it holds the thing you asked for.
+- **ERR** — it holds why there is no thing.
+
+First you ask which state it is in. What you read next depends on that answer.
+
+The code is the part that matters. Each type that can fail names its own result kinds, in an enum called `<thing>_result_type`. Example for `dbj_arena`:
+
+```c
+typedef enum : unsigned short {
+    DBJ_ARENA_ERR_NONE = 0,
+    DBJ_ARENA_ERR_EXHAUSTED,
+} dbj_arena_result_type;
+```
+
+So a caller tests a tag instead of matching on prose in a error message:
+
+```c
+dbj_arena_result br_ = dbj_arena_new(&arena, count, char);
+
+// we know result is some kind of error
+if (dbj_result_is_err(br_)) {
+     // we know exactly what kind of error
+    if (dbj_arena_result_type_of(br_) == DBJ_ARENA_ERR_EXHAUSTED) {
+        /* ...fall back, or start a fresh arena, or give up cleanly... */
+    }
+}
+```
+
+Not every type gets rich result type. A type earns a `_result_type` when it has a failure worth caring for: `HashKey` has one because the arena underneath it can run out; `HashString` and the element type have none, because nothing about them can go wrong.
+
+
+
+How it is laid out in memory
+
+This section is about speed. Skip it if you only want to use the map.
+
+The obvious layout is one array of elements, each holding a key and a value together. That is what this map used to do, and it was slow for a reason that is invisible in the source.
 
 So the map now keeps three separate arrays instead:
 
 ```
-dbj_hashmap
+hashmap_HashKey_HashString
 ├── index[N]  { state, hash }   16 KB   the search walks only this
 ├── keys[N]   HashKey           40 KB   read only when the hash matched
 └── vals[N]   HashString       132 KB   read only on an actual hit
 ```
 
-Same total memory, same capacity. What changed is how much of it a search has to touch: 16 KB, which fits in the fastest cache and stays there.
+Same total memory, same capacity. What changed is how much of it a search has to touch: 16 KB, which fits in the fastest CPU cache and stays there.
 
-Storing the hash next to the state is the other half of it. The hash is just a number, so a slot that is not the one you want is rejected by comparing two numbers, instead of by comparing 32 bytes of text. `hash_key_equal` still has the final say — two different keys *can* produce the same hash — but it now runs only on slots that already look promising.
+Storing the hash next to the state is the other half of it. The hash is just a number, so a slot that is not the one you want is rejected by comparing two numbers, instead of by comparing 32 bytes of text. `HashKey_equal` still has the final say — two different keys *can* produce the same hash — but it now runs only on slots that already look promising.
 
-`HashMapElement` still exists. It is what a lookup hands back to you. It is no longer how the map stores anything.
+The element type still exists. It is what a lookup hands back to you. It is no longer how the map stores anything.
 
 ### One attribute that turned out to matter
 
 The three operations are marked `[[gnu::always_inline]]`, and that is a measured decision rather than a preference.
 
-Building an answer out of three arrays is more work for the compiler than copying one struct was. It was enough extra work that GCC decided `dbj_hashmap_set` was too big to [inline](#vocabulary) and gave it a real function call instead. A real call has to copy the 132-byte value argument onto the stack every single time. Insert went from 5 ns to 27 ns per key on that alone — a five-fold slowdown, caused by a compiler heuristic, from a change that touched none of the arithmetic.
+Building an answer out of three arrays is more work for the compiler than copying one struct was. It was enough extra work that GCC decided the map's `_set` was too big to [inline](#vocabulary) and gave it a real function call instead. A real call has to copy the 132-byte value argument onto the stack every single time. Insert went from 5 ns to 27 ns per key on that alone — a five-fold slowdown, caused by a compiler heuristic, from a change that touched none of the arithmetic.
 
 The attribute puts it back. Worth remembering: for a header-only map like this one, the inliner is part of the design.
 
@@ -152,12 +203,12 @@ The attribute puts it back. Worth remembering: for a header-only map like this o
 Every map operation is `[[nodiscard]]` — the compiler warns if you throw the return value away. That is because the returned result is the *only* place the map reports being full. If you genuinely mean to ignore it, say so:
 
 ```c
-(void)dbj_hashmap_set(&map, key, value);   /* deliberate, and it shows */
+(void)hashmap_HashKey_HashString_set(&map, key, value);   /* deliberate, and it shows */
 ```
 
 `dbj_hashmap_mix` is `[[gnu::const]]`, which promises the compiler that its answer depends on its arguments and on nothing else in the world — so two identical calls can be folded into one. Checked: they are.
 
-`hash_key_hash` and `hash_key_equal` are `[[gnu::pure]]` instead, which is the weaker version of the same promise: same arguments give the same answer, as long as memory has not changed in between. They cannot be `const`, because a `KT_SLICE` key reads bytes that live elsewhere, and `const` promises reading no memory at all. The ordinal and string branches would each qualify as `const` on their own — but the attribute belongs to the whole function, so the weakest branch decides for all of them. That is what the two owning kinds pay for the borrowing kind existing.
+`HashKey_hash` and `HashKey_equal` are `[[gnu::pure]]` instead, which is the weaker version of the same promise: same arguments give the same answer, as long as memory has not changed in between. They cannot be `const`, because a `KT_SLICE` key reads bytes that live elsewhere, and `const` promises reading no memory at all. The ordinal and string branches would each qualify as `const` on their own — but the attribute belongs to the whole function, so the weakest branch decides for all of them. That is what the two owning kinds pay for the borrowing kind existing.
 
 `hash_key_empty`, `hash_string_128` and `hash_string_len` are `[[maybe_unused]]`. Nothing here calls them. They exist because the unions have those cases, and the attribute says so on purpose rather than leaving it looking like an oversight.
 
@@ -244,7 +295,9 @@ The insert row is 2x against uthash, measured the same way in both — fill 256 
 
 **translation unit** (TU) — one `.c` file plus everything it `#include`s: the unit the compiler processes at a time. "Define this in exactly one TU" means exactly one `.c` file in the whole program should produce the definition.
 
-**bump allocator** / **arena** — the simplest possible allocator. It holds a block of memory and a pointer into it; allocating moves the pointer forward. There is no individual free — you throw the whole block away at once. Fast, and it makes lifetime a single obvious question.
+**bump allocator** / **arena** — the simplest possible allocator. It holds a block of memory and a pointer into it; allocating moves the pointer forward. There is no individual free — you throw the whole block away at once. Fast, and it makes lifetime a single obvious question. It can of course run out, which it reports; see [Failure is a value](#failure-is-a-value).
+
+**result** — a returned value that is either the thing you asked for or the reason you cannot have it, never both and never neither. It is how this code reports failure without aborting and without reserving a magic value. Reading one means asking `dbj_result_is_ok` first; everything else depends on the answer.
 
 **slice** — a pointer to some bytes plus a length. It refers to text without owning it, which is why it costs the same 16 bytes for any length, and why the text it points at has to outlive it.
 

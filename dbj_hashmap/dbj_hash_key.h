@@ -3,20 +3,24 @@
     2026AUG29       (c) dbj@dbj.org
 
     dbj_hash_key.h -- the key, and the slot handle that holds it.
-    Two discriminated unions on two orthogonal axes:
+    One discriminated union:
 
         HashKey         WHAT the key is: KT_ORDINAL, KT_STRING or
                         KT_SLICE. Adding a key type is adding a case
                         here and an arm to each of the two operations
                         below.
-        HashKeyHandle   the STATE of the slot: EMPTY, NULL or VALUE,
-                        the three states a single SQL cell has. Three
-                        values, and it stays three.
 
-    The map touches key internals nowhere. It goes through:
+    The state of a slot -- EMPTY, NULL or VALUE -- used to live here too,
+    on a HashKeyHandle. It belongs to the slot rather than to the key, and
+    it now sits in the map's index array as dbj_slot_state. Nothing on
+    this side knows a map exists.
 
-        hash_key_hash   the key's hash, whatever kind it is
-        hash_key_equal  two keys of the same kind, compared
+    The map touches key internals nowhere. It goes through the two
+    operations DBJ_MAKE_HASHMAP requires of every key type, named after
+    the type:
+
+        HashKey_hash    the key's hash, whatever kind it is
+        HashKey_equal   two keys of the same kind, compared
 
     Two of the three kinds hold their text. KT_SLICE points at text it
     does not hold -- see "The pointing key" below, which is the one
@@ -123,23 +127,55 @@ typedef struct
     return (HashKey){.kind = KT_SLICE, .slice = slice};
 }
 
+/* A key, or the reason there is not one. Only one operation here can
+   fail, so only one returns a result. */
+DBJ_MAKERESULT(HashKey);
+
+/* The OK arm. Valid only once dbj_result_is_ok() has said so. */
+#define dbj_result_hash_key(result_) ((result_).HashKey_OK.my_value)
+
+/* This side's result subtypes. One failure, so far. It does not simply
+   reuse dbj_arena_result_type: the arena's codes belong to the arena's
+   result type, and a caller of hash_key_slice_copy should not have to
+   know which allocator sits underneath to read the failure. */
+typedef enum : unsigned short
+{
+    HASH_KEY_ERR_NONE = 0,
+    HASH_KEY_ERR_ARENA_EXHAUSTED,
+} hash_key_result_type;
+
+/* The subtype of a key failure. Meaningful only after
+   dbj_result_is_err(). */
+#define hash_key_result_type_of(result_) \
+    ((hash_key_result_type)dbj_result_code(HashKey, (result_)))
+
 /* Copy text into an arena and point a key at the copy. The arena
    answers the lifetime question the slice kind raises: the text lives
    as long as the arena does, and the caller chooses an arena that
    outlives the map.
 
-   A zero-length slice when the arena is exhausted -- dbj_arena_alloc
-   returns nullptr rather than aborting, and this keeps that. */
-[[nodiscard]] static inline HashKey hash_key_slice_copy(dbj_arena *arena, const char *text)
+   This used to hand back a zero-length KT_SLICE key when the arena was
+   exhausted, which was indefensible: that is a perfectly ordinary
+   looking key, and the caller had no way to tell it apart from a key
+   whose text really is empty. It would then be inserted, and every
+   other exhausted key would collide with it. A silent wrong answer.
+
+   The failure is reported now. The arena's own message is passed
+   through rather than reworded -- it already says what went wrong, and
+   the location field will name this function as where it surfaced. */
+[[nodiscard]] static inline HashKeyResult hash_key_slice_copy(dbj_arena *arena, const char *text)
 {
     ptrdiff_t length = (ptrdiff_t)strlen(text);
-    char *copy = dbj_arena_new(arena, length, char);
-    if (!copy)
+    dbj_arena_result block = dbj_arena_new(arena, length, char);
+    if (dbj_result_is_err(block))
     {
-        return (HashKey){.kind = KT_SLICE, .slice = {}};
+        return HashKey_make_err_coded(__func__,
+                                      dbj_arena_result_message(block),
+                                      HASH_KEY_ERR_ARENA_EXHAUSTED);
     }
+    char *copy = dbj_arena_ptr(block, char);
     memcpy(copy, text, (size_t)length);
-    return (HashKey){.kind = KT_SLICE, .slice = {copy, length}};
+    return HashKey_make_ok((HashKey){.kind = KT_SLICE, .slice = {copy, length}});
 }
 
 /* ------------------------------------------------------------------
@@ -203,8 +239,12 @@ typedef struct
    the function, not the arm, so the weakest arm sets it.
 
    No `default` case, so -Wswitch-enum -Werror names this site when a
-   key kind is added. */
-[[gnu::pure]] static inline uint64_t hash_key_hash(HashKey key)
+   key kind is added.
+
+   Named HashKey_hash because DBJ_MAKE_HASHMAP(HashKey, ...) pastes that
+   name -- the map calls it directly rather than through a pointer stored
+   in the key. */
+[[gnu::pure]] static inline uint64_t HashKey_hash(HashKey key)
 {
     switch (key.kind)
     {
@@ -225,8 +265,12 @@ typedef struct
    -- deliberately: one holds its text and one points at text held
    elsewhere, and silently equating them would hide that.
 
-   [[gnu::pure]] for the same reason as hash_key_hash. */
-[[gnu::pure]] static inline bool hash_key_equal(HashKey lhs, HashKey rhs)
+   The hash places a key; this decides whether the key found there is the
+   one being searched for. Both are needed, and neither replaces the
+   other.
+
+   [[gnu::pure]] for the same reason as HashKey_hash. */
+[[gnu::pure]] static inline bool HashKey_equal(HashKey lhs, HashKey rhs)
 {
     if (lhs.kind != rhs.kind)
     {
@@ -244,47 +288,3 @@ typedef struct
     __builtin_unreachable(); /* no fake return; the switch has no default */
 }
 
-/* ------------------------------------------------------------------
-   HashKeyHandle -- the state of the slot holding a key
-   ------------------------------------------------------------------ */
-
-/* EMPTY  nothing was ever stored here; the key member means nothing
-   NULL   a key is present, but holds no value
-   VALUE  a key with a value
-
-   A zeroed handle is HK_EMPTY, which is what makes a zeroed map an
-   empty map. */
-typedef enum
-{
-    HK_EMPTY,
-    HK_NULL,
-    HK_VALUE
-} hk_id;
-
-/* Not a union: HK_NULL and HK_VALUE both carry the key, and HK_EMPTY
-   simply does not read it. A union over "key" and "no key" would buy
-   nothing and cost a second tag. */
-typedef struct
-{
-    hk_id id;
-    HashKey val;
-} HashKeyHandle;
-
-/* A zeroed handle is already HK_EMPTY, so this is for clarity at a
-   call site, not for initialising. Hence [[maybe_unused]]. */
-[[nodiscard, maybe_unused]] static inline HashKeyHandle hash_key_empty(void)
-{
-    return (HashKeyHandle){.id = HK_EMPTY};
-}
-
-/* HK_NULL still carries its key: the entry is present, so a probe must
-   be able to match it. Only HK_EMPTY has no key. */
-[[nodiscard]] static inline HashKeyHandle hash_key_null(HashKey key)
-{
-    return (HashKeyHandle){.id = HK_NULL, .val = key};
-}
-
-[[nodiscard]] static inline HashKeyHandle hash_key_value(HashKey key)
-{
-    return (HashKeyHandle){.id = HK_VALUE, .val = key};
-}
