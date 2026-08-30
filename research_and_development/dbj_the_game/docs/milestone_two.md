@@ -116,16 +116,16 @@ Rulings folded in, and what each costs:
   a missing texture is a message rather than an invisible sprite. The ERR arm
   already carries `location` and `message`, so the explanation has somewhere to
   live without inventing one.
-- **Both file pairs in `dbj_the_game/`.** Not `../toplevel/` — everything there
+- **Both file pairs in `dbj_the_game/`.** Not `corelib/` — everything there
   is header-only, and these need translation units.
 
-Two mechanical consequences of reusing the toplevel headers, recorded so the
+Two mechanical consequences of reusing the corelib headers, recorded so the
 next reader does not rediscover them:
 
 - `dbj_str_512_create` takes `const unsigned char src[static 512]` — a promise
   of 512 readable bytes, which a string literal does not keep (`-Wstringop-overread`,
   fatal under `-Werror`). Same trap
-  [dbj_result.h](../../toplevel/dbj_result.h) already documents at its line 46.
+  [dbj_result.h](../../../corelib/dbj_result.h) already documents at its line 46.
   Sidestepped rather than worked around: paths are `snprintf`-ed directly into
   the returned object's own `.data`, so `_create` is never called, no size is
   written twice, and the value is built where it is returned from.

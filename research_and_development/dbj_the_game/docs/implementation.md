@@ -61,8 +61,10 @@ Rulings already made that land in this file. Carried from
 
 **SIGNAL** — DBJ should intervene — FALSE.
 
-**[settled] build dir** — `DBJ_BUILDS` with `../builds` fallback, as every
-other Makefile here does; the game is not special.
+**[settled] build dir** — `DBJ_BUILDS` with a `../../builds` fallback, as
+every other Makefile here does; the game is not special. `DBJ_CORELIB`,
+added with the corelib rename, has no fallback at all: unset, the Makefile
+stops.
 
 **[settled] compiler pin** — `gcc` on Windows, `gcc-15` on Linux, per
 `tribute_to_tony/Makefile`: distro `gcc` still defaults to older.
@@ -185,7 +187,8 @@ developer, never committed:
 | Variable | Value here | Why it is not in the Makefile |
 |---|---|---|
 | `PATH` | must contain the toolchain `bin` (`D:\mingw\bin`) | where GCC is installed differs per machine and per platform |
-| `DBJ_BUILDS` | `D:\REPOS\DBJARH\DBJ_CODING_SKILLS\builds` | every folder here builds into one tree; unset falls back to `../builds` |
+| `DBJ_BUILDS` | `G:\REPOS\DBJARH\DBJ_CODING_SKILLS\builds` | every folder here builds into one tree; unset falls back to `../../builds` |
+| `DBJ_CORELIB` | `G:\REPOS\DBJARH\DBJ_CODING_SKILLS\corelib` | where the shared headers are; **no fallback** — unset stops the build |
 
 On Windows both are user environment variables
 (`[Environment]::SetEnvironmentVariable(..., "User")`), which only new shells
@@ -251,7 +254,7 @@ rather than merely *used*.
 | `dbj_simple_log.h` | startup, asset resolution, spawn refusals | a full arena is visible in the log, not silent |
 | `dbj_clintro.h` | banner in `main` | trivial, one call |
 | `dbj_macros.h` | `DBJ_LOOP_AS` over arenas and the map grid | reads better than the plain `for` it replaces, at 4 nested loops in `physics.c` |
-| `dbj_nanobench.h` | `entity_step` over a synthetic arena | dispatch cost measured same-compiler, same-flags — **not** against the C++ ancestor |
+| `dbj_ubenchtest.h` | `entity_step` over a synthetic arena | dispatch cost measured same-compiler, same-flags — **not** against the C++ ancestor |
 | `dbj_required_compile_time.h` | GCC-15 gate | same as every other folder |
 | `tau` | simulation unit tests | a recorded input array replays a game with no window — the reason `input.c` is split out |
 | `dbc_assert` | spawn / despawn preconditions | slot index in range, tag matches arena |

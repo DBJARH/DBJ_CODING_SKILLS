@@ -11,7 +11,7 @@ CORELIB   := $(subst \,/,$(DBJ_CORELIB))
 
 CFLAGS    := -std=c23 -Wall -Wextra -Wswitch -Werror -I $(CORELIB)
 # DBJ_BUILDS, if set in the environment, is where every folder's build
-# output goes; falls back to ../builds (repo root) if unset.
+# output goes; falls back to ../../builds (repo root) if unset.
 BUILD_DIR := $(subst \,/,$(if $(DBJ_BUILDS),$(DBJ_BUILDS),../../builds))
 
 SOURCES   := main.c world.c entity.c physics.c map.c input.c draw.c \

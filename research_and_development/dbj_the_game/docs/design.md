@@ -20,11 +20,11 @@ protocol:
 # dbj_the_game — design chamber
 
 A rewrite of a C++14/SFML side-scroller into C23 + raylib, following this
-repository's [core principles](../../CLAUDE.md).
+repository's [core principles](../../../CLAUDE.md).
 
 Per [readme.md](../readme.md), **the game is the load and the toolkit is the
-subject**: this exists to put [`toplevel/`](../../toplevel/) and
-[`third_party/`](../../third_party/) under a real program. Design
+subject**: this exists to put [`corelib/`](../../../corelib/) and
+[`third_party/`](../../../third_party/) under a real program. Design
 choices below are made with that in mind; where a header is exercised, it is
 named.
 
@@ -203,7 +203,7 @@ kind rather than degree: the ancestor's equivalent mistake is silent.
 
 The *how* lives next door in [implementation.md](implementation.md) —
 toolchain, vendored raylib, link lines, derived constants, and which
-`toplevel/` header attaches where. Everything there can change without
+`corelib/` header attaches where. Everything there can change without
 anything here changing.
 
 ## What changes and why
@@ -534,7 +534,7 @@ boss. The spawner refills forever, so the player can die but cannot win —
 stated in the design, not discovered afterwards, and accepted by DBJ for the
 initial release only.
 
-Proves the tag-and-switch design end to end and puts `toplevel/` and
+Proves the tag-and-switch design end to end and puts `corelib/` and
 `third_party/` under a real program. That is the whole job of this rung.
 
 No external configuration: hardcoded defaults are what an ini file would need
@@ -614,7 +614,7 @@ below, not a decision.
    kind, no boss, and a spawner that refills forever means the game does not
    end: the player can die, but there is nothing to win. That is acceptable
    for a POC whose job is to hold a frame budget while exercising
-   `toplevel/`, but it is a choice, and someone will otherwise sit waiting
+   `corelib/`, but it is a choice, and someone will otherwise sit waiting
    for a win screen that was never designed. The boss arrives with milestone
    2 and brings the end condition with it.
 

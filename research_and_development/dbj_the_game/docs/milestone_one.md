@@ -140,7 +140,7 @@ Three questions wait on DBJ. None of them blocks the milestone.
 - The central claim is real: no raylib below `draw.c`, so `world_step` runs
   with no window. That is what makes the suite below possible at all.
 - Tag-and-switch throughout, arrays carrying their bounds, `world w[static 1]`
-  everywhere, no OOP idioms — the [core principles](../../CLAUDE.md) held
+  everywhere, no OOP idioms — the [core principles](../../../CLAUDE.md) held
   under 780 lines of real program, not just in the examples.
 - Layering is honest. `physics.c` does not know what input is; `entity.c` does
   not know what a colour is.
