@@ -4,10 +4,10 @@
     still builds and runs where it stands:
 
         make            in this folder
-        gcc -std=gnu23 -O2 -Wall -Wextra -I . -I ../../toplevel \
+        gcc -std=gnu23 -O2 -Wall -Wextra -I . -I $DBJ_CORELIB \
             -o dbj_nanobench_test dbj_nanobench_test.c
 
-    dbj_str.h and dbj_nth_prime.h still come from toplevel.
+    dbj_str.h and dbj_nth_prime.h still come from corelib.
 */
 #define DBJ_NANOBENCH_IMPLEMENTATION
 #include "dbj_nanobench.h"

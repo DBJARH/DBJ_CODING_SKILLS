@@ -1,5 +1,20 @@
 # Building
 
+## `DBJ_CORELIB` first
+
+**Every Makefile in this repo requires `DBJ_CORELIB`**, pointing at
+this repo's [corelib/](corelib/) folder. It is checked, not guessed:
+an unset variable stops the build with a message. Forward or backward
+slashes both work.
+
+```
+# PowerShell -- set it permanently, then restart the shell
+[Environment]::SetEnvironmentVariable("DBJ_CORELIB", "G:\repos\DBJARH\DBJ_CODING_SKILLS\corelib", "User")
+
+# sh / bash
+export DBJ_CORELIB=~/Repositories/DBJARH/DBJ_CODING_SKILLS/corelib
+```
+
 Each folder in this repo is a standalone example with its own
 `Makefile` (GCC 15+ required — see [CLAUDE.md](CLAUDE.md)).
 [build.sh](build.sh) is a thin wrapper at the repo root that delegates
@@ -9,8 +24,8 @@ flags. One script for every platform; on Windows run it from Git Bash:
 **build argument must be folder**
 
 ```
-./build.sh tribute_to_tony        # build one folder
-./build.sh strassen_mat_mul clean # extra args are passed through as make targets
+./build.sh research_and_development/tribute_to_tony
+./build.sh research_and_development/strassen_mat_mul clean
 ./build.sh                        # build every folder that has a Makefile
 ```
 
@@ -30,19 +45,24 @@ $env:DBJ_BUILDS = "G:\wherever\you\want"
 export DBJ_BUILDS=/wherever/you/want
 ```
 
+All folders below except `corelib/` live under
+`research_and_development/`.
+
 | Folder | Output |
 |---|---|
+| `corelib/` | `corelib_smoke_test` |
 | `tribute_to_tony/` | `dbj_email_crud` |
 | `ken_thompson_grep/` | `dbj_grep` |
 | `dbj_str_test/` | `dbj_str_test` |
-| `toplevel/` | `toplevel_smoke_test` |
+| `dbj_hashmap/` | `dbj_hashmap_smoketest`, `dbj_make_hashmap_smoketest`, `dbj_hashmap_benchmarks` |
 | `strassen_mat_mul/` | `bench`, `strassen_bench_comparator`, `soa_aso_comparator`, `dbj_soa_aso` |
 
 ## VS Code: F5 to build and debug
 
 Open any `.c` file and press **F5** — `.vscode/tasks.json` builds just
-that file (`-std=gnu23 -g`, both `-I ../toplevel` and
-`-I ../third_party/tau` so every file's includes resolve), then
+that file (`-std=gnu23 -g`, both `-I ${workspaceFolder}/corelib` and
+`-I ${workspaceFolder}/third_party/tau` so every file's includes
+resolve), then
 `.vscode/launch.json` launches it under `gdb` with breakpoints working.
 
 This is a separate, quicker path from the Makefile build above, not a

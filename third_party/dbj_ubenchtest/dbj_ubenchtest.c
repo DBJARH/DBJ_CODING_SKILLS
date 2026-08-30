@@ -16,7 +16,7 @@
        / MinGW-w64 is the REVERSE of source declaration order (see
        dbj_ubenchtest.h) -- do not rely on it.
 
-    gcc -std=c2x -Wall -Wswitch -Werror -I . -I ../../toplevel \
+    gcc -std=c2x -Wall -Wswitch -Werror -I . -I "$DBJ_CORELIB" \
         -o dbj_ubenchtest dbj_ubenchtest.c
 */
 #include "dbj_ubenchtest.h"

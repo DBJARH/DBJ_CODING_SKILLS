@@ -3,9 +3,14 @@
 # folder's own Makefile. With no argument, builds every folder in
 # this repo that has a Makefile.
 #
-#   ./build.sh tribute_to_tony
+#   ./build.sh research_and_development/tribute_to_tony
 #   ./build.sh
 set -e
+
+if [ -z "$DBJ_CORELIB" ]; then
+    echo "DBJ_CORELIB is not set -- point it at <repo>/corelib"
+    exit 1
+fi
 
 if [ -n "$1" ]; then
     folder="$1"
@@ -22,7 +27,9 @@ if [ -n "$1" ]; then
     exit $?
 fi
 
-for dir in */; do
+# one level down as well: every POC now sits under
+# research_and_development/, and the deprecated corner still builds
+for dir in */ */*/; do
     dir="${dir%/}"
     if [ -f "$dir/Makefile" ]; then
         echo "=== $dir ==="

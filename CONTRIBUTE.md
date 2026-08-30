@@ -14,9 +14,9 @@ every example follows.
 GCC 15 or better is the *only* supported compiler — Clang, MSVC, and
 everything else are explicitly not supported (several headers rely on
 GCC extensions, e.g. nested functions via
-[`toplevel/dbj_defer.h`](toplevel/dbj_defer.h), that Clang does not
+[`corelib/dbj_defer.h`](corelib/dbj_defer.h), that Clang does not
 implement). This is enforced at compile time, not just documented:
-[`toplevel/dbj_required_compile_time.h`](toplevel/dbj_required_compile_time.h)
+[`corelib/dbj_required_compile_time.h`](corelib/dbj_required_compile_time.h)
 `#error`s out immediately on Clang or on GCC older than 15.
 
 On Windows, MinGW-w64 GCC works well — get it from

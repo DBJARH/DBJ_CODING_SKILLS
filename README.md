@@ -2,25 +2,25 @@
 
 Small, self-contained C23 proof-of-concepts. Each folder stands alone.
 
-## The content
+## The layout
 
-- [toplevel/](toplevel/) — shared headers used by the POCs: defer,
-  result, logging, string helpers, macros.
-- [tribute_to_tony/](tribute_to_tony/) — tagged-union CRUD example,
-  after Hoare's "Record Handling".
-- [ken_thompson_grep/](ken_thompson_grep/) — C23 port of the regex
-  engine from V6 Unix `grep`.
-- [strassen_mat_mul/](strassen_mat_mul/) — Strassen matrix multiply,
-  plus SoA vs AoS layout comparisons.
-- [dbjobserve/](dbjobserve/) — job-board observer POC.
-- [dbj_str_test/](dbj_str_test/) — tests for `dbj_str.h`.
-- [dbj_the_game/](dbj_the_game/) — the integration POC: a C23 + raylib
-  side-scroller that uses `toplevel/` and `third_party/` together, at
-  size. See [why](#why-a-game-is-in-here).
+- [corelib/](corelib/) — the shared headers: defer, result, logging,
+  string helpers, macros. What earned its place, out of the R&D below.
+- [research_and_development/](research_and_development/) — the POCs.
+  Each one either graduates a header into `corelib/`, or the whole
+  folder ends in `deprecated/`.
 - [third_party/](third_party/) — vendored libs: tau, dbj_ubenchtest,
-  dbc_assert, inifile, libcurl.
+  inifile, libcurl, raylib.
 - [deprecated/](deprecated/) — replaced, kept building where it stands.
 - [builds/](builds/) — build output.
+
+## Two environment variables
+
+- **`DBJ_CORELIB` must point at this repo's `corelib/`.** Every
+  Makefile stops with an error if it is unset. No fallback: a wrong
+  corelib is a broken build, not a silent one.
+- `DBJ_BUILDS`, optional, is where build output goes. Unset, each
+  folder writes to `builds/` at the repo root.
 
 ## Testing and benchmarking
 
@@ -46,21 +46,17 @@ registers itself at startup and the run order is the linker's, not
 yours. Benchmarks print shuffled. Accepted knowingly — the resolution
 is worth more than the ordering.
 
-Not a POC, but kept here for lack of a better home:
-
-- [claude_permissions_almanah/](claude_permissions_almanah/) — reusable
-  Claude Code permission profiles and settings, with instructions.
-
 ## Why a game is in here
 
 Every other folder proves one idea, in one file, on its own terms.
 That is what a POC is for, and it leaves one thing unproven: whether
-the shared code in [toplevel/](toplevel/) and the vendored libraries in
+the shared code in [corelib/](corelib/) and the vendored libraries in
 [third_party/](third_party/) actually hold up when a program uses
 several of them at once, over thousands of lines, against a real
 external dependency.
 
-`dbj_the_game/` is that proof. It is still a proof-of-concept — the
+[research_and_development/dbj_the_game/](research_and_development/dbj_the_game/)
+is that proof. It is still a proof-of-concept — the
 subject being proved is the toolkit, not the game. The game is only the
 load it carries.
 
