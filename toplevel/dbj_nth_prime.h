@@ -12,7 +12,7 @@
     })
 
 /* 1-indexed: get_nth_prime(1) == 2, get_nth_prime(2) == 3, ... */
-static int dbj_get_nth_prime(const int n) {
+static inline int dbj_get_nth_prime(const int n) {
     int count = 0;
     int candidate = 1;
     while (count < n) {

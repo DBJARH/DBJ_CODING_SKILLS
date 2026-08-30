@@ -2,7 +2,8 @@
 # this folder is built with the same flags as the rest of the repo.
 # -Wswitch-enum, not just -Wswitch: -Wswitch goes silent the moment a
 # `default` appears, which is exactly the mistake CLAUDE.md forbids.
-CFLAGS    := -std=gnu23 -Wall -Wextra -Wswitch-enum -Werror -I ../toplevel -I .
+CFLAGS    := -std=gnu23 -Wall -Wextra -Wswitch-enum -Werror -I ../toplevel -I . \
+             -I ../third_party/dbj_ubenchtest
 # DBJ_BUILDS, if set in the environment, is where every folder's build
 # output goes; falls back to ../builds (repo root) if unset.
 BUILD_DIR := $(if $(DBJ_BUILDS),$(DBJ_BUILDS),../builds)
@@ -50,7 +51,8 @@ $(MAKE_TARGET): dbj_make_hashmap_smoketest.c dbj_make_hashmap.h \
 # -O2 for the benchmarks only: timing an unoptimised build measures
 # something nobody ships.
 $(BENCH_TARGET): dbj_hashmap_benchmarks.c $(HEADERS) \
-                 ../toplevel/dbj_nanobench.h ../toplevel/dbj_clintro.h | $(BUILD_DIR)
+                 ../third_party/dbj_ubenchtest/dbj_ubenchtest.h \
+                 ../toplevel/dbj_clintro.h | $(BUILD_DIR)
 	$(CC) $(CFLAGS) -O2 -o $(BENCH_TARGET) dbj_hashmap_benchmarks.c
 
 test: $(SMOKE_TARGET) $(MAKE_TARGET)

@@ -1,11 +1,26 @@
 /*
-   DEPRECATED -- kept for reference only, not used by any active code
-   in this repo. dbj_nanobench/dbj_nanobench.h is the active benchmark
-   harness (see DBJ_BENCH/DBJ_BENCH_N/DBJ_MEASURE/DBJ_MEASURE_N there).
----------------------------------------------------------------------   
-   Blocker: UBENCH()/UBENCH_F() order of registration and executoin can 
-   not be controled.
----------------------------------------------------------------------   
+   This repo's benchmark harness. dbj_nanobench.h, which it replaces,
+   is in deprecated/dbj_nanobench/.
+---------------------------------------------------------------------
+   Known and accepted: UBENCH()/UBENCH_F() run in registration order,
+   which is the linker's order, not the order they are written in.
+   Benchmark lines come out shuffled. Name them so a shuffled list
+   still reads.
+---------------------------------------------------------------------
+   Repetition -- ours, not upstream's.
+
+   Write one operation in a benchmark body, however small. The runner
+   calibrates a repeat count before measuring: it grows the number of
+   body calls per clock reading until a sample takes about 200 us, then
+   divides the sample by that count and reports one call. The line says
+   how many calls went into each sample when it is more than one.
+
+   Without it, upstream reads the clock around every single call. On
+   Windows that clock ticks in 100 ns steps and costs about 30 ns to
+   read twice, so anything quicker than roughly 40 ns reads back as
+   ~32 ns whatever it really costs -- a 1.6 ns probe measured 20x its
+   own cost, and the confidence gate correctly refused all of it.
+---------------------------------------------------------------------
 
    AMALGAMATION OF UBENCH AND UTEST
 
@@ -174,6 +189,9 @@ struct ubench_run_state_s {
     dbj_ubt_int64_t *ns;
     dbj_ubt_int64_t size;
     dbj_ubt_int64_t sample;
+    /* how many times the body runs between two clock readings -- see
+       "Repetition" at the top of this file. Never zero. */
+    dbj_ubt_int64_t repeats;
 };
 
 typedef void (*ubench_benchmark_t)(struct ubench_run_state_s *ubs);
@@ -379,7 +397,13 @@ extern struct ubench_state_s ubench_state;
    ubench -- benchmark definition and runner (UBENCH_*)
    ====================================================================== */
 
-#define UBENCH_DO_BENCHMARK() while (ubench_do_benchmark(ubench_run_state) > 0)
+/* One clock reading per sample, but `repeats` runs of the body between
+   two readings -- so a body far quicker than the clock's tick still
+   produces a measurable sample. The runner divides back out. */
+#define UBENCH_DO_BENCHMARK()                                                 \
+    while (ubench_do_benchmark(ubench_run_state) > 0)                        \
+        for (dbj_ubt_int64_t ubench_repeat = ubench_run_state->repeats;      \
+             ubench_repeat-- > 0;)
 
 #define UBENCH_SKIP()                                                         \
     do {                                                                     \
@@ -545,6 +569,7 @@ int ubench_main(int argc, const char *const argv[]) {
         int result = 1;
         size_t mndex = 0;
         dbj_ubt_int64_t best_avg_ns = 0;
+        double best_ns_per_op = 0;
         double best_deviation = 0;
         double best_confidence = 101.0;
         struct ubench_run_state_s ubs;
@@ -566,6 +591,7 @@ int ubench_main(int argc, const char *const argv[]) {
         ubs.ns = ns;
         ubs.size = 1;
         ubs.sample = 0;
+        ubs.repeats = 1;
 
         ubench_state.result = UBENCH_RESULT_PASS;
         ubench_state.benchmarks[index].func(&ubs);
@@ -591,7 +617,37 @@ int ubench_main(int argc, const char *const argv[]) {
             continue;
         }
 
-        iterations = (100 * 1000 * 1000) / ((ns[1] <= ns[0]) ? 1 : ns[1] - ns[0]);
+        /* Repetition calibration. The clock ticks in 100 ns steps on
+           Windows and reading it twice costs about 30 ns, so a body
+           quicker than that cannot be seen one call at a time -- every
+           sample is 0 or one whole tick. Grow `repeats` until a sample
+           is long enough that neither matters, then report the sample
+           divided by it.
+
+           Grown by re-measuring rather than by one leap: the first
+           probe of a sub-tick body is mostly quantisation noise, so its
+           estimate is only trustworthy as a direction. */
+        {
+            const dbj_ubt_int64_t target_ns = 200 * 1000; /* 200 us per sample */
+            const dbj_ubt_int64_t max_repeats = 1000 * 1000;
+            dbj_ubt_int64_t sample_ns = ns[1] - ns[0];
+
+            while ((sample_ns < target_ns) && (ubs.repeats < max_repeats)) {
+                dbj_ubt_int64_t grow = (sample_ns > 0) ? (target_ns / sample_ns) + 1 : 16;
+                if (grow < 2) grow = 2;
+                if (grow > 64) grow = 64;
+
+                ubs.repeats *= grow;
+                if (ubs.repeats > max_repeats) ubs.repeats = max_repeats;
+
+                ubs.size = 1;
+                ubs.sample = 0;
+                ubench_state.benchmarks[index].func(&ubs);
+                sample_ns = ns[1] - ns[0];
+            }
+
+            iterations = (100 * 1000 * 1000) / ((sample_ns <= 0) ? 1 : sample_ns);
+        }
         iterations = iterations < min_iterations ? min_iterations : iterations;
         iterations = iterations > max_iterations ? max_iterations : iterations;
 
@@ -640,9 +696,12 @@ int ubench_main(int argc, const char *const argv[]) {
                    best_confidence, ubench_state.confidence);
         }
 
+        /* samples measured `repeats` bodies each; report one body */
+        best_ns_per_op = (double)best_avg_ns / (double)ubs.repeats;
+
         if (ubench_state.output) {
-            fprintf(ubench_state.output, "%s, %" DBJ_UBT_PRId64 ", %f, %f,\n",
-                    ubench_state.benchmarks[index].name, best_avg_ns, best_deviation,
+            fprintf(ubench_state.output, "%s, %f, %f, %f,\n",
+                    ubench_state.benchmarks[index].name, best_ns_per_op, best_deviation,
                     best_confidence);
         }
 
@@ -659,17 +718,29 @@ int ubench_main(int argc, const char *const argv[]) {
                 failed++;
             }
 
-            printf("%s%s%s %s (mean ", colour, status, colours[RESET],
-                   ubench_state.benchmarks[index].name);
+            double shown = best_ns_per_op;
 
-            for (mndex = 0; mndex < 2; mndex++) {
-                if (best_avg_ns <= 1000000) break;
-                best_avg_ns /= 1000;
-                unit = (0 == mndex) ? "ms" : "s";
+            unit = "ns";
+            if (shown >= 1000.0 * 1000.0 * 1000.0) {
+                shown /= 1000.0 * 1000.0 * 1000.0;
+                unit = "s";
+            } else if (shown >= 1000.0 * 1000.0) {
+                shown /= 1000.0 * 1000.0;
+                unit = "ms";
+            } else if (shown >= 1000.0) {
+                shown /= 1000.0;
+                unit = "us";
             }
 
-            printf("%" DBJ_UBT_PRId64 ".%03" DBJ_UBT_PRId64 "%s, confidence interval +- %f%%)\n",
-                   best_avg_ns / 1000, best_avg_ns % 1000, unit, best_confidence);
+            printf("%s%s%s %s (mean %.3f%s", colour, status, colours[RESET],
+                   ubench_state.benchmarks[index].name, shown, unit);
+
+            if (ubs.repeats > 1) {
+                printf(" per call, %" DBJ_UBT_PRId64 " calls per sample",
+                       ubs.repeats);
+            }
+
+            printf(", confidence interval +- %f%%)\n", best_confidence);
         }
     }
 

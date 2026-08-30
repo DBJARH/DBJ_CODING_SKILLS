@@ -1,8 +1,8 @@
 # Fixtures
 
-> **DEPRECATED** -- see the note at the top of `ubenchtest.h`. Kept
-> for reference only; `ubenchtest.h`/`.c` are not used by any active
-> code in this repo.
+> Worked examples in this repo: `strassen_mat_mul/strassen.c` and
+> `strassen_mat_mul/soa_aso_comparator.c` both allocate and fill their
+> matrices in a fixture, so only the multiply is timed.
 
 Fixtures are used to define state that is initialized once and then
 reused throughout a benchmark. This separates the cost of

@@ -1,11 +1,16 @@
 /*
-    Compile from the repo root (needs -I toplevel to resolve
-    <dbj_nanobench.h>, <dbj_str.h> and <dbj_nth_prime.h>):
+    Deprecated. dbj_nanobench.h is no longer the repo's benchmark
+    harness -- third_party/dbj_ubenchtest is. Both live here so this
+    still builds and runs where it stands:
 
-    gcc -std=gnu23 -O2 -Wall -Wextra -Itoplevel -o dbj_nanobench_test/smoketest.exe dbj_nanobench_test/smoketest.c
+        make            in this folder
+        gcc -std=gnu23 -O2 -Wall -Wextra -I . -I ../../toplevel \
+            -o dbj_nanobench_test dbj_nanobench_test.c
+
+    dbj_str.h and dbj_nth_prime.h still come from toplevel.
 */
 #define DBJ_NANOBENCH_IMPLEMENTATION
-#include <dbj_nanobench.h>
+#include "dbj_nanobench.h"
 #include <dbj_str.h>
 #include <dbj_nth_prime.h>
 #include <stdio.h>

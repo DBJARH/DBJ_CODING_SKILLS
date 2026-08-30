@@ -1,9 +1,5 @@
 /*
-    DEPRECATED -- see the note at the top of ubenchtest.h. Kept as a
-    working example for reference only; not built or used by any
-    active code in this repo.
-
-    Try-out for ubenchtest.h -- confirms, by actually compiling and
+    Try-out for dbj_ubenchtest.h -- confirms, by actually compiling and
     running:
 
     1. UBENCH() is the only unit of work -- no UTEST(), no test
@@ -14,29 +10,30 @@
        Expected/Actual failure line but does not fail or truncate the
        benchmark -- timing/sampling still runs to completion, and the
        benchmark still reports [ OK ]. The fatal ASSERT_* family is
-       deliberately not used here -- see ubenchtest.h for why it does
+       deliberately not used here -- see dbj_ubenchtest.h for why it does
        not play well with UBENCH()'s sample loop.
     3. ubench benchmarks register in constructor order, which on GCC 15
        / MinGW-w64 is the REVERSE of source declaration order (see
-       ubenchtest.h) -- do not rely on it.
+       dbj_ubenchtest.h) -- do not rely on it.
 
-    gcc -std=c2x -Wall -Wswitch -Werror -o ubenchtest ubenchtest.c
+    gcc -std=c2x -Wall -Wswitch -Werror -I . -I ../../toplevel \
+        -o dbj_ubenchtest dbj_ubenchtest.c
 */
-#include "ubenchtest.h"
-#include "../../toplevel/dbj_nth_prime.h"
+#include "dbj_ubenchtest.h"
+#include <dbj_nth_prime.h>
 
 UBENCH_STATE();
 
 /* only EXPECT_* is usable here in practice: ASSERT_* compiles but its
    early return on failure clashes with UBENCH_DO_BENCHMARK()'s sample
    loop, so a real failure reprints once per sample instead of once --
-   see ubenchtest.h */
+   see dbj_ubenchtest.h */
 UBENCH(DBJ, prime_1000) {
     ENABLE_UBNCH_ASSERT_MACROS();
 
     volatile int result = dbj_get_nth_prime(1000);
     /* stops the compiler from optimizing result away as dead, since
-       nothing above uses it yet -- see UBENCH_DO_NOTHING in ubenchtest.h */
+       nothing above uses it yet -- see UBENCH_DO_NOTHING in dbj_ubenchtest.h */
     UBENCH_DO_NOTHING((void *)&result);
 
     EXPECT_EQ(result, 7919);

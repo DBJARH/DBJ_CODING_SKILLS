@@ -1,6 +1,16 @@
 # [Strassen Matrix Multiplication](#strassen-matrix-multiplication-benchmark) Benchmark
 
-Benchmarks comparing naive O(n^3) matrix multiplication against Strassen's O(n^2.807) algorithm using [dbj_nanobench](../dbj_nanobench/dbj_nanobench.h).
+Benchmarks comparing naive O(n^3) matrix multiplication against Strassen's O(n^2.807) algorithm using [dbj_ubenchtest](../third_party/dbj_ubenchtest/dbj_ubenchtest.h).
+
+Four programs, all on ubenchtest: `strassen.c` (naive base case vs strassen), `strassen_bench_comparator.c` (same, against its own naive baseline, up to 1024), `soa_aso_comparator.c` (both algorithms against both storage layouts, 64..1024) and `dbj_soa_aso.c` (the stack-only SoA/AoS pair at 128).
+
+Allocating and filling matrices happens in a fixture, so it is never timed; each benchmark body is one multiply and ubenchtest decides how often to run it. Benchmarks print in the linker's order, not source order — the names carry size, algorithm and layout. The large sizes are minutes of work, so run a subset with the filter:
+
+```cmd
+soa_aso_comparator.exe --filter=grids_64.*
+```
+
+Measured here, `-O3`, 512x512: naive 316 ms against strassen 50 ms, both within ±2.5%.
 
 ## Requirements
 

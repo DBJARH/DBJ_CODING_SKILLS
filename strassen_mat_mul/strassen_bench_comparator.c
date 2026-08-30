@@ -1,64 +1,87 @@
-// strassen_bench.c - Benchmark naive vs Strassen
-// Compile: gcc-15 -std=c23 -O3 -o bench strassen_bench.c
-// Run: ./bench
+// strassen_bench_comparator.c - naive vs Strassen, on
+// third_party/dbj_ubenchtest.
+//
+// Same question as strassen.c, but against this file's own naive_mult()
+// rather than the header's internal base case, and one size larger.
+//
+// Build: make      Run: ../builds/strassen_bench_comparator.exe
+//
+// matrix_1024.naive is minutes of work on its own. Run a subset with
+// ubench's filter:  strassen_bench_comparator.exe --filter=matrix_128.*
 
-#define DBJ_NANOBENCH_IMPLEMENTATION
-#include <dbj_nanobench.h>
+#include <dbj_ubenchtest.h>
 
 #define DBJ_STRASSEN_MATMUL_IMPLEMENTATION
 #include "dbj_strassen_matmul.h"
-#include <stdio.h>
+
 #include <stdlib.h>
-#include <string.h>
+
+UBENCH_STATE();
 
 // Naive matrix multiplication — the benchmark baseline. Not part of
 // dbj_strassen_matmul.h: that header's own base case is
 // dbj_strassen_base_mult(), private to strassen()'s recursion.
-static void naive_mult(int n, double A[n][n], double B[n][n], double C[n][n]) {
+static void naive_mult(int n, double A[n][n], double B[n][n], double C[n][n])
+{
     for (int i = 0; i < n; i++)
-        for (int j = 0; j < n; j++) {
+        for (int j = 0; j < n; j++)
+        {
             C[i][j] = 0.0;
             for (int k = 0; k < n; k++)
                 C[i][j] += A[i][k] * B[k][j];
         }
 }
 
-static void dbj_nb_bench_matrix(int n) {
-    double (*A)[n] = malloc(sizeof(double[n][n])); defer { free(A); };
-    double (*B)[n] = malloc(sizeof(double[n][n])); defer { free(B); };
-    double (*C)[n] = malloc(sizeof(double[n][n])); defer { free(C); };
+/* Allocating and filling the matrices is fixture setup, so it is not
+   timed. The body is one multiply -- ubench does the looping. */
+#define DBJ_MATRIX_BENCHMARKS(N_)                                     \
+    struct matrix_##N_                                                \
+    {                                                                 \
+        double(*A)[N_];                                               \
+        double(*B)[N_];                                               \
+        double(*C)[N_];                                               \
+    };                                                                \
+                                                                      \
+    UBENCH_F_SETUP(matrix_##N_)                                       \
+    {                                                                 \
+        ubench_fixture->A = malloc(sizeof(double[N_][N_]));            \
+        ubench_fixture->B = malloc(sizeof(double[N_][N_]));            \
+        ubench_fixture->C = malloc(sizeof(double[N_][N_]));            \
+        for (int row = 0; row < N_; row++)                            \
+        {                                                             \
+            for (int col = 0; col < N_; col++)                        \
+            {                                                         \
+                ubench_fixture->A[row][col] = row + col;              \
+                ubench_fixture->B[row][col] = row - col;              \
+            }                                                         \
+        }                                                             \
+    }                                                                 \
+                                                                      \
+    UBENCH_F_TEARDOWN(matrix_##N_)                                    \
+    {                                                                 \
+        free(ubench_fixture->A);                                      \
+        free(ubench_fixture->B);                                      \
+        free(ubench_fixture->C);                                      \
+    }                                                                 \
+                                                                      \
+    UBENCH_F(matrix_##N_, naive)                                      \
+    {                                                                 \
+        naive_mult(N_, ubench_fixture->A, ubench_fixture->B,          \
+                   ubench_fixture->C);                                \
+    }                                                                 \
+                                                                      \
+    UBENCH_F(matrix_##N_, strassen)                                   \
+    {                                                                 \
+        strassen(N_, ubench_fixture->A, ubench_fixture->B,            \
+                 ubench_fixture->C);                                  \
+    }
 
-    for (int i = 0; i < n; i++)
-        for (int j = 0; j < n; j++) {
-            A[i][j] = i + j;
-            B[i][j] = i - j;
-        }
+DBJ_MATRIX_BENCHMARKS(128)
+DBJ_MATRIX_BENCHMARKS(256)
+DBJ_MATRIX_BENCHMARKS(512)
+DBJ_MATRIX_BENCHMARKS(1024)
 
-    char naive_name[64];
-    char strassen_name[64];
-    snprintf(naive_name, sizeof(naive_name), "matrix_%d naive (nanobench)", n);
-    snprintf(strassen_name, sizeof(strassen_name), "matrix_%d strassen (nanobench)", n);
-
-    DBJ_BENCH_N(naive_name, double, 3, 10, {
-        naive_mult(n, A, B, C);
-        DBJ_NB_val = C[0][0];
-    });
-
-    DBJ_BENCH_N(strassen_name, double, 3, 10, {
-        strassen(n, A, B, C);
-        DBJ_NB_val = C[0][0];
-    });
-}
-
-static void dbj_nb_bench_all(void) {
-    dbj_nb_bench_matrix(128);
-    dbj_nb_bench_matrix(256);
-    dbj_nb_bench_matrix(512);
-    dbj_nb_bench_matrix(1024);
-}
-
-int main(int argc, const char *const argv[static argc + 1]) {
-    (void)argc; (void)argv;
-    dbj_nb_bench_all();
-    return 0;
+int main(const int argc, const char *const argv[static argc + 1])
+{
+    return ubench_main(argc, argv);
 }

@@ -6,8 +6,10 @@
 # fallback on any GCC version.  gcc_defer.h is deprecated; kept for reference
 # only.  -I../toplevel resolves toplevel headers as <dbj_*.h>.
 
-CC = G:\mingw64\bin\gcc.exe
-CFLAGS = -std=gnu23 -O3 -I../toplevel
+# plain gcc from PATH -- the old G:\mingw64 path no longer exists; the
+# toolchain lives at G:\mingw, which is on PATH already
+CC = gcc
+CFLAGS = -std=gnu23 -O3 -I../toplevel -I../third_party/dbj_ubenchtest
 
 # DBJ_BUILDS, if set in the environment, is where every folder's build
 # output goes; falls back to ../builds (repo root) if unset.
@@ -26,16 +28,16 @@ all: $(BUILD_DIR)/bench.exe $(BUILD_DIR)/strassen_bench_comparator.exe $(BUILD_D
 $(BUILD_DIR):
 	$(MKDIR)
 
-$(BUILD_DIR)/bench.exe: strassen.c ../toplevel/dbj_defer.h ../toplevel/dbj_nanobench.h | $(BUILD_DIR)
+$(BUILD_DIR)/bench.exe: strassen.c ../toplevel/dbj_defer.h ../third_party/dbj_ubenchtest/dbj_ubenchtest.h | $(BUILD_DIR)
 	$(CC) $(CFLAGS) -o $@ strassen.c
 
-$(BUILD_DIR)/strassen_bench_comparator.exe: strassen_bench_comparator.c dbj_strassen_matmul.h ../toplevel/dbj_nanobench.h | $(BUILD_DIR)
+$(BUILD_DIR)/strassen_bench_comparator.exe: strassen_bench_comparator.c dbj_strassen_matmul.h ../third_party/dbj_ubenchtest/dbj_ubenchtest.h | $(BUILD_DIR)
 	$(CC) $(CFLAGS) -o $@ strassen_bench_comparator.c
 
-$(BUILD_DIR)/soa_aso_comparator.exe: soa_aso_comparator.c dbj_strassen_matmul.h ../toplevel/dbj_defer.h ../toplevel/dbj_nanobench.h | $(BUILD_DIR)
+$(BUILD_DIR)/soa_aso_comparator.exe: soa_aso_comparator.c dbj_strassen_matmul.h ../toplevel/dbj_defer.h ../third_party/dbj_ubenchtest/dbj_ubenchtest.h | $(BUILD_DIR)
 	$(CC) $(CFLAGS) -o $@ soa_aso_comparator.c
 
-$(BUILD_DIR)/dbj_soa_aso.exe: dbj_soa_aso.c dbj_strassen_matmul.h ../toplevel/dbj_defer.h ../toplevel/dbj_macros.h ../toplevel/dbj_clintro.h ../toplevel/dbj_nanobench.h | $(BUILD_DIR)
+$(BUILD_DIR)/dbj_soa_aso.exe: dbj_soa_aso.c dbj_strassen_matmul.h ../toplevel/dbj_defer.h ../toplevel/dbj_macros.h ../toplevel/dbj_clintro.h ../third_party/dbj_ubenchtest/dbj_ubenchtest.h | $(BUILD_DIR)
 	$(CC) $(CFLAGS) -o $@ dbj_soa_aso.c
 
 clean:

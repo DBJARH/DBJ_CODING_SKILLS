@@ -1,5 +1,4 @@
-#define DBJ_NANOBENCH_IMPLEMENTATION
-#include <dbj_nanobench.h>
+#include <dbj_ubenchtest.h>
 #include "../toplevel/dbj_macros.h"
 #include "../toplevel/dbj_clintro.h"
 
@@ -9,6 +8,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
+
+UBENCH_STATE();
 
 typedef enum { A, B, C } GridID;
 #define GRIDNUM 3
@@ -65,24 +66,21 @@ static void aos_grid_run ( void )
     // printf("AoS C:\n"); grid_print(aos_grids[C].rows);
 }
 
-static void dbj_nb_bench_all(void) {
-    // strassen(GRID_SIDE_LEN, ...) recurses with heap-allocated
-    // temporaries per call -- DBJ_MEASURE's defaults (1000 warmup +
-    // 100000 timed) are sized for cheap in-place work and would run
-    // for a very long time here, so use small explicit counts instead,
-    // matching strassen_bench_comparator.c / soa_aso_comparator.c.
-    DBJ_MEASURE_N("AOS BENCH", 3, 10, {
-        aos_grid_run();
-    });
+// Both bodies fill their grids and then multiply, on purpose: the
+// filling is part of what the layouts are being compared on. ubench
+// decides how many times to run each and how many samples it needs.
+UBENCH(grids_128, aos)
+{
+    aos_grid_run();
+}
 
-    DBJ_MEASURE_N("SOA BENCH", 3, 10, {
-        soa_grid_run();
-    });
+UBENCH(grids_128, soa)
+{
+    soa_grid_run();
 }
 //-------------------------------------------------------------------------------
-int main(void) {
-    dbj_clintro("dbj_soa_aso", "0.1.0");
+int main(const int argc, const char *const argv[static argc + 1]) {
+    dbj_clintro("dbj_soa_aso", "0.2.0");
     srand((unsigned)time(NULL));
-    dbj_nb_bench_all();
-    return 42;
+    return ubench_main(argc, argv);
 }

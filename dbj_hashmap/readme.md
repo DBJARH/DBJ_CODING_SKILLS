@@ -1,5 +1,5 @@
 ---
-version: 1.3
+version: 1.4
 ---
 
 # dbj_hashmap r&d
@@ -226,7 +226,7 @@ All numbers below: 256 keys, `"key0"` through `"key255"`, built `-O2`, on the sa
 
 ### What the optimisation pass moved
 
-The repo's own timing tool measures one call at a time and cannot resolve anything below roughly 10 ns — which here is most of what we are trying to see. These numbers come from running each operation 10 million times and dividing.
+`dbj_nanobench.h`, the repo's old timing tool (now in [../deprecated/dbj_nanobench/](../deprecated/dbj_nanobench/)), measured one call at a time and could not resolve anything below roughly 10 ns — which here is most of what we are trying to see. The numbers in this table came from running each operation 10 million times by hand and dividing.
 
 | ns per operation | before | after |
 |---|---|---|
@@ -248,24 +248,29 @@ The rest of the gain is the three-array split.
 
 **What a string key still costs.** A full lookup is 41 ns while its own hash is 2.6 ns. Almost all of the remainder is the `HashKey` itself — 40 bytes — being copied by value through four functions in a row. That is the next thing to look at, and it is a question about the union, not about the map.
 
-### Against other tables
+### What `make bench` reports
 
-Compared with [../chris_welons/wellons_benchmark.c](../chris_welons/wellons_benchmark.c) and [../dbj_uthash/uthash_benchmark.c](../dbj_uthash/uthash_benchmark.c), as `make bench` reports it. Note the units change per row.
+Measured by [../third_party/dbj_ubenchtest](../third_party/dbj_ubenchtest/), which samples until the number stops moving and prints a confidence interval — every line below came in under ±0.7%.
 
-| | ordinal | owned string | slice | Wellons | uthash |
-|---|---|---|---|---|---|
-| get, key present (µs) | 0.05 | 0.10 | 0.06 | 0.03 | 0.04 |
-| get, key absent (µs) | 0.05 | 0.09 | 0.06 | 0.03 | 0.03 |
-| hash alone (µs) | — | 0.05 | 0.03 | 0.03 | 0.03 |
-| insert, per key (ns) | 5 | — | — | — | 10 |
+Each benchmark body is a single operation. Every one of them is quicker than the clock can see one call at a time, so the harness runs the body thousands of times between two clock readings and divides back out; it prints the count it chose.
 
-Read this table as orders of magnitude only. At a 10 ns floor a 0.01 difference means nothing, and this table cannot see most of what the previous one measured.
+| ns per operation | ordinal | owned string | slice |
+|---|---|---|---|
+| get, key present | **12.9** | 65.2 | 16.2 |
+| get, key absent | **12.5** | 54.9 | 17.1 |
+| hash alone | — | 21.7 | 2.9 |
+| probe only | 1.6 | — | — |
+| insert, per key | 6.0 | — | — |
 
-The slice hash matches Wellons' `hash64`, as it should — both hash only the bytes present, by the same method. The owned string's extra cost is its fixed 32-byte buffer: same map, same search, only the key kind changed.
+`hash_string_32`, building a value rather than looking one up, is 1.6 ns — the same as an ordinal probe.
 
-The remaining 0.05 against Wellons' 0.03 on a full lookup is this map copying the whole element out to you, where Wellons hands back a pointer into his own table.
+The shape is the same story the table above tells: the slice hash is cheap because it hashes six bytes, the owned string hashes all 32 of its fixed buffer whatever the key's length, and the ordinal key is its own hash.
 
-The insert row is 2x against uthash, measured the same way in both — fill 256 keys, divide, allocation kept outside the timed part. It is **not** a claim that this map inserts better. uthash grows and rehashes as it fills and would happily accept a 100,000th key; this map has 1024 slots and says `ERR` past them. Refusing to grow is most of what that 2x buys. See [../dbj_uthash/readme.md](../dbj_uthash/readme.md).
+These numbers are **not** comparable to the previous table's. That one timed a bare operation in a hand-written loop; this one keeps the result alive across an optimisation barrier every iteration, and the result here is a whole element — key, state and a 132-byte value — copied out to the caller. The barrier is what makes the measurement honest, and it is also most of the difference.
+
+The comparison against [../chris_welons/wellons_benchmark.c](../chris_welons/wellons_benchmark.c) and [../dbj_uthash/uthash_benchmark.c](../dbj_uthash/uthash_benchmark.c) is out of date: both still measure with the deprecated nanobench, so their old numbers cannot be put beside these. That table comes back when those two are ported.
+
+The insert row is measured the way uthash's own benchmark measures it — fill 256 keys, divide, allocation kept outside the timed part — and it keeps its own clock, because a benchmark that must empty the map between runs cannot let that clearing be timed with the inserts. It is **not** a claim that this map inserts better. uthash grows and rehashes as it fills and would happily accept a 100,000th key; this map has 1024 slots and says `ERR` past them. Refusing to grow is most of what the difference buys. See [../dbj_uthash/readme.md](../dbj_uthash/readme.md).
 
 ## Vocabulary
 
