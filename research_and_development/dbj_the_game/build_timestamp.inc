@@ -2,4 +2,4 @@
 // file until it is built, and main.h says "unknown" until then.
 //
 // Unlike milestone_iteration.inc beside it, nothing here is written by hand.
-#define DBJ_THE_GAME_BUILD_TIMESTAMP "2026-08-31 14:32:09 UTC"
+#define DBJ_THE_GAME_BUILD_TIMESTAMP "2026-08-31 14:44:45 UTC"

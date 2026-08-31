@@ -116,21 +116,30 @@ void world_respawn(world w[static 1], float dt)
 
 	if (w->enemy_count >= ENEMY_CAP) return;
 
+	// The stage has a budget as well as a cap. Spent, it sends nobody
+	// else, and what is already alive is all that stands between the
+	// player and the end.
+	if (w->enemies_spawned >= STAGE_ENEMIES) return;
+
 	vec2 at = w->spawn_points[w->spawn_cursor];
 	w->spawn_cursor = (w->spawn_cursor + 1) % w->spawn_count;
-	world_spawn(w, ENTITY_WARRIOR, at);
+	if (world_spawn(w, ENTITY_WARRIOR, at) != nullptr)
+		++w->enemies_spawned;
 }
 
 // Fixed order, every frame: think, then resolve, then reap, then refill.
 // Refill runs last because physics is where deaths happen -- refilling
 // earlier lets an enemy killed this frame reappear in the same frame.
-// Death stops the world. Nothing steps, nothing falls, nothing spawns:
-// the last frame stays as it was, and the dialogue is drawn over it.
-// The flag is raised in reap(), one step earlier, so the frame the player
-// died in is complete before anything freezes.
+// An ended world stops. Nothing steps, nothing falls, nothing spawns: the
+// last frame stays as it was, and a dialogue is drawn over it. Death and
+// victory freeze identically -- the only difference is which dialogue the
+// loop puts on top.
+//
+// Both flags are raised a step earlier than they are read here, so the
+// frame the game ended in is complete before anything freezes.
 void world_step(world w[static 1], float dt, input_state const in[static 1])
 {
-	if (w->player_dead)
+	if (w->player_dead || w->player_won)
 		return;
 
 	for (int i = 0; i < w->player_count; ++i)
@@ -143,4 +152,13 @@ void world_step(world w[static 1], float dt, input_state const in[static 1])
 	physics_apply(w, dt);
 	reap(w);
 	world_respawn(w, dt);
+
+	// Won: the stage has sent its whole budget and the player has cleared
+	// every one of them. Checked after the reap that emptied the arena and
+	// after the spawner declined to refill it, so both are settled for this
+	// frame. A player who dies clearing the last warrior stays dead: death
+	// is decided in reap() above, and it wins the tie here rather than in
+	// the loop, so no caller has to know the order to be correct.
+	if (!w->player_dead && w->enemies_spawned >= STAGE_ENEMIES && w->enemy_count == 0)
+		w->player_won = true;
 }

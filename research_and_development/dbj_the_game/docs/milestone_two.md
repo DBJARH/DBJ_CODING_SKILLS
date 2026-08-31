@@ -89,6 +89,43 @@ force `world.c` to learn about map paths and the configurator, which is
 knowledge it does not have and should not get. Textures are deliberately
 not reloaded — they outlive the world and belong to `draw.c`.
 
+[settled] [issue 6](#issue-6) — it was never an open question. `design.md`
+line 555 rules it, marked **Ruled**, and both agents asked the supervisor
+something the repo had already answered. Mine to own as much as ZED's: I
+raised it in a plan to DBJ without opening `design.md` first. The lesson is
+cheap and worth keeping — a chamber's siblings are part of the chamber.
+
+### The end of the stage — the winnable half
+
+`ENEMY_CAP` bounds warriors *alive at once*; nothing bounded how many the
+stage would send, so it sent them forever. That forever was the only thing
+between the game and a win.
+
+```mermaid
+flowchart LR
+    S["world_respawn"] --> B{"budget spent?<br/>enemies_spawned >= STAGE_ENEMIES"}
+    B -->|no| SP["send a warrior<br/>++enemies_spawned"]
+    B -->|yes| N["send nobody"]
+    N --> C{"arena empty?"}
+    C -->|yes| W["player_won"]
+    C -->|no| K["the ones alive<br/>are all that is left"]
+```
+
+[settled] `enemies_spawned` counts **up**. `world.h` carries the rule that
+no field may join the struct whose zero value is invalid, and a
+remaining-count would read 0 in a fresh world and win the game before it
+began. The rule caught the bug before the field was written.
+
+[settled] The tie is broken in `world.c`, not in the loop: a player who
+dies clearing the last warrior is dead, not victorious. `reap()` decides
+death first and the win refuses to fire while `player_dead`. No caller has
+to know the order to be correct, which is why the branch order in `main.c`
+is readability rather than logic.
+
+[settled] Victory and death freeze identically — `world_step` returns on
+either flag. Only the dialogue differs, which is what `dialogues_win` and
+`dialogues_death` returning the same enum already says.
+
 </details>
 
 ---
@@ -237,7 +274,7 @@ The only list. Cite a row from anywhere in this file as `[issue N](#issue-N)`.
 | [settled] | <a id="issue-3"></a> **3 — The loop switches modes on death.** `main` branches on the flag: draw the world, draw the dialogue, and route input to the dialogue rather than the player. |
 | [settled] | <a id="issue-4"></a> **4 — Dialogues get their own translation unit.** Two buttons, in its own `dialogues.h` / `dialogues.c` — ruled: dialogues do not go in `draw.c`, and this is where every later one lands too. It needs raylib, so it sits at the same level as `draw.c`, never below it. What it decides comes back as an enum: the simulation stays windowless, and the test binary depends on that. |
 | [settled] | <a id="issue-5"></a> **5 — Restart or Exit on death.** Exit leaves the loop; Restart reloads the map into a fresh `world w = {0}`. Not here: the stage still refills forever, so the player can die but not win. |
-| [open] | <a id="issue-6"></a> **6 — Winnability.** [design.md](design.md#milestone-two) says milestone two must be *winnable*. A death dialogue ends the game; it does not let the player finish it. One ruling, two readings — and it decides whether issues 2-5 are the whole milestone or half of it. |
+| [settled] | <a id="issue-6"></a> **6 — Winnability.** Not a question: [design.md](design.md#milestone-two) line 555 already carries it as **Ruled** — "the never-ending stage is not acceptable here, milestone two must be winnable". So issues 2-5 were half. The other half: `STAGE_ENEMIES` is a level budget beside `ENEMY_CAP`, the spawner stops when it is spent, and clearing the last warrior sets `player_won`. Victory freezes the world and raises a dialogue exactly as death does. |
 
 
 ---

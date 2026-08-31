@@ -30,24 +30,26 @@ static bool button(Rectangle rect, char const label[static 1])
 	return hovered && IsMouseButtonPressed(MOUSE_BUTTON_LEFT);
 }
 
-dialogue_choice dialogues_death(void)
+// Death and victory differ in what the player is told, not in what they may
+// do next, so the panel is written once and the title is the parameter.
+static dialogue_choice end_dialogue(char const title[static 1], Color title_colour)
 {
 	float const panel_x = ((float)WINDOW_WIDTH - PANEL_WIDTH) / 2.0f;
 	float const panel_y = ((float)WINDOW_HEIGHT - PANEL_HEIGHT) / 2.0f;
 
-	// Dim what is behind rather than clear it: the frame the player died in
+	// Dim what is behind rather than clear it: the frame the run ended on
 	// stays visible under the panel, which is what makes it read as an
 	// overlay and not a new screen.
 	DrawRectangle(0, 0, WINDOW_WIDTH, WINDOW_HEIGHT, (Color){0, 0, 0, 160});
 	DrawRectangle((int)panel_x, (int)panel_y, PANEL_WIDTH, PANEL_HEIGHT, (Color){20, 20, 20, 240});
 	DrawRectangleLines((int)panel_x, (int)panel_y, PANEL_WIDTH, PANEL_HEIGHT, RAYWHITE);
 
-	int const title_width = MeasureText("YOU DIED", 40);
-	DrawText("YOU DIED",
+	int const title_width = MeasureText(title, 40);
+	DrawText(title,
 	         (int)panel_x + (PANEL_WIDTH - title_width) / 2,
 	         (int)panel_y + 32,
 	         40,
-	         RED);
+	         title_colour);
 
 	float const buttons_width = (2 * BUTTON_WIDTH) + BUTTON_GAP;
 	float const buttons_x     = panel_x + ((PANEL_WIDTH - buttons_width) / 2.0f);
@@ -72,4 +74,14 @@ dialogue_choice dialogues_death(void)
 		return DIALOGUE_EXIT;
 
 	return DIALOGUE_PENDING;
+}
+
+dialogue_choice dialogues_death(void)
+{
+	return end_dialogue("YOU DIED", RED);
+}
+
+dialogue_choice dialogues_win(void)
+{
+	return end_dialogue("STAGE CLEAR", GOLD);
 }

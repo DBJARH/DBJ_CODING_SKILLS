@@ -13,6 +13,11 @@
 // the comment in world.c exists to prevent.
 #define PLAYERS_MAX      2
 #define ENEMY_CAP       15  // alive at once, not a level total
+#define STAGE_ENEMIES   20  // a level total, unlike ENEMY_CAP. The stage
+                            // stops sending warriors after this many, and
+                            // clearing the last of them is how the player
+                            // wins. Not derived from ENEMY_CAP -- one is a
+                            // budget, the other a concurrency limit.
 #define ENEMIES_MAX     (ENEMY_CAP + 1)
 #define PROJECTILES_MAX 64
 #define OBSTACLES_MAX  320
@@ -86,7 +91,13 @@ typedef struct {
 	int spawn_count;
 	int spawn_cursor;   // round-robin over spawn_points
 	float respawn_timer;
+	// Counts up, never down: a zeroed world has sent nobody yet, which is
+	// the honest start. A remaining-count would read 0 in a fresh world and
+	// win the game before it began -- the struct rule above is what keeps
+	// that mistake out.
+	int enemies_spawned;
 	bool player_dead;
+	bool player_won;
 } world;
 
 typedef struct {

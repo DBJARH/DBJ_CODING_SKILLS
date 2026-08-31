@@ -98,6 +98,54 @@ TEST(world, death_freezes_the_simulation) {
 	REQUIRE_TRUE(wld.enemy_count == enemies_before, "a frozen world spawns nobody");
 }
 
+// The stage has a budget, not just a cap -- issue 6, ruled winnable in
+// design.md. Spent it, and the spawner sends nobody else.
+TEST(world, the_stage_stops_sending_warriors) {
+	world wld = {0};
+	wld.spawn_points[0] = (vec2){0.0f, 0.0f};
+	wld.spawn_count = 1;
+	wld.enemies_spawned = STAGE_ENEMIES;
+
+	input_state idle = {0};
+	run(&wld, &idle, 600);
+
+	REQUIRE_TRUE(wld.enemy_count == 0, "a spent stage spawns nobody");
+}
+
+// Clearing the budget is the win, and it freezes the world exactly as
+// death does. No player is needed: the flag is about the stage.
+TEST(world, clearing_the_last_warrior_wins) {
+	world wld = {0};
+	wld.spawn_points[0] = (vec2){0.0f, 0.0f};
+	wld.spawn_count = 1;
+	wld.enemies_spawned = STAGE_ENEMIES - 1;
+
+	input_state idle = {0};
+	run(&wld, &idle, 120);
+	REQUIRE_TRUE(wld.enemy_count == 1, "the last of the budget is sent");
+	REQUIRE_TRUE(!wld.player_won, "a warrior still alive is not a win");
+
+	wld.enemies[0].life = 0;
+	run(&wld, &idle, 1);
+
+	REQUIRE_TRUE(wld.player_won, "the budget spent and the arena empty is a win");
+}
+
+// A player who dies clearing the last warrior is dead, not victorious.
+TEST(world, death_beats_victory_in_a_tie) {
+	world wld = {0};
+	entity *player = world_spawn(&wld, ENTITY_PLAYER, (vec2){10.0f, 10.0f});
+	REQUIRE_TRUE(player != nullptr, "player slot must exist in an empty world");
+	wld.enemies_spawned = STAGE_ENEMIES;
+	player->life = 0;
+
+	input_state idle = {0};
+	run(&wld, &idle, 1);
+
+	REQUIRE_TRUE(wld.player_dead, "a player out of life is dead");
+	REQUIRE_TRUE(!wld.player_won, "death wins the tie, so the win is not claimed");
+}
+
 // ENEMY_CAP bounds enemies alive at once. The stage refills forever, so
 // the cap is the only thing between the spawner and a full arena.
 TEST(world, spawner_honours_the_cap) {

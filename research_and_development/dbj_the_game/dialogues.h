@@ -23,4 +23,9 @@ typedef enum : unsigned char
 // the other two.
 dialogue_choice dialogues_death(void);
 
+// The victory dialogue. Same two choices as death, and deliberately the
+// same enum: winning and losing differ in what the player is told, not in
+// what they may do next. A third value would name a choice nobody has.
+dialogue_choice dialogues_win(void);
+
 #endif  // DBJ_THE_GAME_DIALOGUES_H

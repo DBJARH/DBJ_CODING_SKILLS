@@ -73,17 +73,24 @@ int main(int argc, char *argv[static argc + 1])
 	if (!draw_load_art(&cfg)) return 1;
 	defer { draw_unload_art(); }
 
-	// Two modes, one flag. Alive: poll the player, step the world, draw it.
-	// Dead: the world is frozen (world_step returns early anyway), the last
-	// frame is drawn again underneath, and the input goes to the dialogue
-	// instead of the player.
+	// Two modes, three states. Playing: poll the player, step the world,
+	// draw it. Ended, dead or won: the world is frozen (world_step returns
+	// early on either flag anyway), the last frame is drawn again
+	// underneath, and the input goes to the dialogue instead of the player.
+	//
+	// Which dialogue is the only difference between dying and winning. The
+	// tie is already broken in world.c -- a player who dies clearing the
+	// last warrior is dead, and player_won is never set alongside it -- so
+	// the order of these two branches is readability, not correctness.
 	while (!WindowShouldClose()) {
 		// Clamp dt: a long stall must not tunnel entities through
 		// platforms, since collision here is discrete.
 		float dt = GetFrameTime();
 		if (dt > MAX_FRAME_DT) dt = MAX_FRAME_DT;
 
-		if (!game.player_dead) {
+		bool const ended = game.player_dead || game.player_won;
+
+		if (!ended) {
 			input_state now = input_poll();
 			world_step(&game, dt, &now);
 		}
@@ -91,16 +98,19 @@ int main(int argc, char *argv[static argc + 1])
 		draw_frame_begin();
 		draw_world(&game);
 
-		if (game.player_dead) {
+		if (ended) {
 			// Over the frozen frame, never instead of it.
-			dialogue_choice const chosen = dialogues_death();
+			dialogue_choice const chosen =
+				game.player_dead ? dialogues_death() : dialogues_win();
+
 			if (chosen == DIALOGUE_EXIT) {
 				draw_frame_end();
 				break;
 			}
 			if (chosen == DIALOGUE_RESTART) {
 				// A zeroed world is a valid empty world, and the map
-				// is the only state worth carrying over.
+				// is the only state worth carrying over. Both flags and
+				// the spent budget go with it -- that is the restart.
 				game = (world){0};
 				if (!map_load(&game, map_file)) {
 					TraceLog(LOG_ERROR, "map reload failed: %s", map_file);
