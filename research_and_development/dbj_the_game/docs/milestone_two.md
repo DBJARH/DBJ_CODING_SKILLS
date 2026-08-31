@@ -19,9 +19,9 @@ protocol:
 
 # dbj_the_game — milestone two chamber
 
-Judgement on milestone two, filled in as the work lands. Nothing is built yet,
-so the sections below are empty on purpose — an empty verdict is honest, an
-invented one is not.
+Judgement on milestone two, filled in as the work lands. Issues 1 to 5 are
+built and settled; [issue 6](#issue-6) is a supervisor ruling, not work, and
+it decides whether those five are the whole milestone or half of it.
 
 Scope, as ruled: milestone one carries over unchanged — one stage, one player,
 `WARRIOR` only, no boss — and milestone two adds the end. The player dies, the
@@ -50,6 +50,44 @@ itself is specified in [dbj_chamber.md](dbj_chamber.md).
 <details id="ASH_notes" markdown="1">
 <summary><b>ASH</b></summary>
 
+### Who owns the frame — found while doing [issue 3](#issue-3)
+
+`dialogues_death` is specified to draw over the frame already there and to
+clear nothing, which is right. But `draw_world` owned `BeginDrawing`,
+`ClearBackground` and `EndDrawing`, so a dialogue drawn *after* it drew
+outside the frame entirely — invisible, or a frame late. Neither file was
+wrong on its own; the frame simply had no owner.
+
+```mermaid
+flowchart LR
+    L["main loop"] --> B["draw_frame_begin"]
+    B --> W["draw_world<br/>paints, owns nothing"]
+    W --> D{"player_dead?"}
+    D -->|yes| G["dialogues_death<br/>over the frozen frame"]
+    D -->|no| E
+    G --> E["draw_frame_end"]
+```
+
+The loop owns the frame now. `draw.h` gained `draw_frame_begin` and
+`draw_frame_end`; `draw_world` paints into a frame somebody else opened.
+
+[settled] [issue 2](#issue-2) — `world_step` returns immediately when
+`player_dead`: no entity steps, no physics, no reap, no respawn. The flag is
+raised in `reap()` one step earlier, so the frame the player died in is
+complete before anything freezes. Test `world.death_freezes_the_simulation`
+asserts a warrior stops falling and the spawner stops spawning. 10 suites.
+
+[settled] [issue 3](#issue-3) — the loop branches on the flag. Alive:
+`input_poll`, `world_step`, draw. Dead: no polling and no stepping, the
+frozen frame is drawn again and `dialogues_death` goes over it. A dead
+player cannot walk, and the dialogue has the keyboard uncontested.
+
+[settled] [issue 5](#issue-5) — Restart is three lines at the call site in
+`main.c`: `game = (world){0}` then `map_load` with the already-resolved
+path. Ruled against a `world_reload` helper, on ZED's objection: it would
+force `world.c` to learn about map paths and the configurator, which is
+knowledge it does not have and should not get. Textures are deliberately
+not reloaded — they outlive the world and belong to `draw.c`.
 
 </details>
 
@@ -153,12 +191,36 @@ complete element type. Every free function keeps the array form. Recorded here
 because it is the kind of exception that otherwise gets "fixed" back into a
 build error.
 
-[fix] Front matter names `spec: dbj_chamber.md` and the Discussion section links
-to it. No such file exists in `docs/`. Either it is unwritten or it is elsewhere.
+[settled] Front matter names `spec: dbj_chamber.md` and no such file is in
+`docs/`. It was elsewhere, not unwritten: it lives in the `dbj_theoria_mundi`
+repo, under `harness_2_harness_over_devenv/`. The link stays broken from here
+and that is a repo boundary, not an error to fix in this file.
 
 [open] [issue 6](#issue-6) is not implementable work sitting among five tasks —
 it is the question that sizes the milestone. Answered one way, issues 2-5 are
 all of it; answered the other, they are half.
+
+[settled] [issue 4](#issue-4) — `dialogues.h` / `dialogues.c`, at `draw.c`'s
+level and never below it. `dialogue_choice` comes back out; raylib does not.
+`dialogues.c` is in `SOURCES` and deliberately not in `SIM_SOURCES`, so the
+test binary still links without a display.
+
+[settled] [issue 5](#issue-5) — ASH's three lines at the call site stand, and I
+withdrew my offer to write a `world_reload`. A helper in `world.c` would have
+had to learn about map paths and the configurator, which is knowledge that
+translation unit does not have and should not acquire to save one line.
+
+[settled] My own bug, recorded because the fix is not where the mistake was: I
+specified a dialogue that draws over the existing frame without saying who
+*opens* that frame, and assumed `draw_world` would keep owning it. It did, so
+every dialogue draw call would have landed outside `BeginDrawing`. ASH moved
+frame ownership up to the loop — `draw_frame_begin` / `draw_frame_end` — which
+is correct. A seam nobody is named the owner of is a seam that breaks.
+
+[settled] Restart resets exactly what it should: `game = (world){0}` plus a
+reload. The dialogue holds no state, and `draw.c`'s textures must *not* be
+reloaded — a GPU handle outliving nothing is fine, a reloaded one leaks.
+Recorded so the next reader does not go hunting for a missing reset.
 
 </details>
 
@@ -171,10 +233,10 @@ The only list. Cite a row from anywhere in this file as `[issue N](#issue-N)`.
 | Status | Issue |
 |---|---|
 | [settled] | <a id="issue-1"></a> **1 — Assets resolved beside the exe.** Six paths were relative to the working directory: the map in `main.c`, five textures in `draw.c`. `dbj_platform` holds the OS knowledge (one `#ifdef`), `dbj_configurator` holds the layout and answers with `dbj_str_512Result` by value. `draw_load_art` now checks texture id 0, so the five silent failures speak. Makefile copies `assets/` into the build directory. |
-| [open] | <a id="issue-2"></a> **2 — Death freezes the simulation.** `world_step` returns early when `player_dead` — no gravity, no spawner, no warriors. The last frame stays on screen behind the dialogue. |
-| [open] | <a id="issue-3"></a> **3 — The loop switches modes on death.** `main` branches on the flag: draw the world, draw the dialogue, and route input to the dialogue rather than the player. |
-| [open] | <a id="issue-4"></a> **4 — Dialogues get their own translation unit.** Two buttons, in its own `dialogues.h` / `dialogues.c` — ruled: dialogues do not go in `draw.c`, and this is where every later one lands too. It needs raylib, so it sits at the same level as `draw.c`, never below it. What it decides comes back as an enum: the simulation stays windowless, and the test binary depends on that. |
-| [open] | <a id="issue-5"></a> **5 — Restart or Exit on death.** Exit leaves the loop; Restart reloads the map into a fresh `world w = {0}`. Not here: the stage still refills forever, so the player can die but not win. |
+| [settled] | <a id="issue-2"></a> **2 — Death freezes the simulation.** `world_step` returns early when `player_dead` — no gravity, no spawner, no warriors. The last frame stays on screen behind the dialogue. |
+| [settled] | <a id="issue-3"></a> **3 — The loop switches modes on death.** `main` branches on the flag: draw the world, draw the dialogue, and route input to the dialogue rather than the player. |
+| [settled] | <a id="issue-4"></a> **4 — Dialogues get their own translation unit.** Two buttons, in its own `dialogues.h` / `dialogues.c` — ruled: dialogues do not go in `draw.c`, and this is where every later one lands too. It needs raylib, so it sits at the same level as `draw.c`, never below it. What it decides comes back as an enum: the simulation stays windowless, and the test binary depends on that. |
+| [settled] | <a id="issue-5"></a> **5 — Restart or Exit on death.** Exit leaves the loop; Restart reloads the map into a fresh `world w = {0}`. Not here: the stage still refills forever, so the player can die but not win. |
 | [open] | <a id="issue-6"></a> **6 — Winnability.** [design.md](design.md#milestone-two) says milestone two must be *winnable*. A death dialogue ends the game; it does not let the player finish it. One ruling, two readings — and it decides whether issues 2-5 are the whole milestone or half of it. |
 
 

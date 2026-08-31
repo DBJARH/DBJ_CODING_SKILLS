@@ -77,6 +77,27 @@ TEST(world, knife_kills_and_both_are_reaped) {
 	REQUIRE_TRUE(wld.projectile_count == 0, "a spent knife is reaped with it");
 }
 
+// Death stops the world -- issue 2. A dead player means world_step does
+// nothing at all: no gravity, no spawner. The frame the player died in
+// stays on screen for the dialogue to be drawn over.
+TEST(world, death_freezes_the_simulation) {
+	world wld = {0};
+	wld.spawn_points[0] = (vec2){0.0f, 0.0f};
+	wld.spawn_count = 1;
+	entity *faller = world_spawn(&wld, ENTITY_WARRIOR, (vec2){300.0f, 10.0f});
+	REQUIRE_TRUE(faller != nullptr, "a warrior slot must exist in an empty world");
+
+	vec2 const resting = faller->pos;
+	int const enemies_before = wld.enemy_count;
+	wld.player_dead = true;
+
+	input_state idle = {0};
+	run(&wld, &idle, 120);
+
+	REQUIRE_TRUE(faller->pos.y == resting.y, "a frozen world applies no gravity");
+	REQUIRE_TRUE(wld.enemy_count == enemies_before, "a frozen world spawns nobody");
+}
+
 // ENEMY_CAP bounds enemies alive at once. The stage refills forever, so
 // the cap is the only thing between the spawner and a full arena.
 TEST(world, spawner_honours_the_cap) {

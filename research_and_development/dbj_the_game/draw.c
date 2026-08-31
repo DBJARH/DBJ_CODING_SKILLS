@@ -158,11 +158,19 @@ static Camera2D follow_camera(world const w[static 1])
 	};
 }
 
-void draw_world(world const w[static 1])
+void draw_frame_begin(void)
 {
 	BeginDrawing();
 	ClearBackground((Color){20, 18, 30, 255});
+}
 
+void draw_frame_end(void)
+{
+	EndDrawing();
+}
+
+void draw_world(world const w[static 1])
+{
 	BeginMode2D(follow_camera(w));
 	if (w->obstacle_count > 0)   draw_arena(w->obstacles, w->obstacle_count);
 	if (w->enemy_count > 0)      draw_arena(w->enemies, w->enemy_count);
@@ -176,6 +184,4 @@ void draw_world(world const w[static 1])
 		DrawText("dead", 10, 10, 20, RED);
 	DrawText(TextFormat("enemies %d", w->enemy_count), 10, 34, 20, RAYWHITE);
 	DrawFPS(WINDOW_WIDTH - 90, 10);
-
-	EndDrawing();
 }

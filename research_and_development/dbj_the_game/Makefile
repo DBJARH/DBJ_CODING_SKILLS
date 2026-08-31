@@ -20,7 +20,7 @@ endif
 BUILD_DIR := $(subst \,/,$(DBJ_BUILDS))
 
 SOURCES   := main.c world.c entity.c physics.c map.c input.c draw.c \
-             dbj_configurator.c dbj_platform.c
+             dialogues.c dbj_configurator.c dbj_platform.c
 # build_timestamp.inc is deliberately absent from this list. It is written
 # by make.sh before every build, so naming it here would relink the test
 # binary too -- and the simulation has no version string in it.

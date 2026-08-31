@@ -124,8 +124,15 @@ void world_respawn(world w[static 1], float dt)
 // Fixed order, every frame: think, then resolve, then reap, then refill.
 // Refill runs last because physics is where deaths happen -- refilling
 // earlier lets an enemy killed this frame reappear in the same frame.
+// Death stops the world. Nothing steps, nothing falls, nothing spawns:
+// the last frame stays as it was, and the dialogue is drawn over it.
+// The flag is raised in reap(), one step earlier, so the frame the player
+// died in is complete before anything freezes.
 void world_step(world w[static 1], float dt, input_state const in[static 1])
 {
+	if (w->player_dead)
+		return;
+
 	for (int i = 0; i < w->player_count; ++i)
 		entity_step(&w->players[i], dt, in, w);
 	for (int i = 0; i < w->enemy_count; ++i)

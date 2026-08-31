@@ -16,6 +16,11 @@
 // and stops nothing -- so the check belongs here, where the path is known.
 bool draw_load_art(dbj_configurator const cfg[static 1]);
 void draw_unload_art(void);
+// The frame is the loop's, not this file's. draw_world paints into a frame
+// somebody else opened, so a dialogue can be drawn over it before the frame
+// closes -- raylib only presents what is between these two.
+void draw_frame_begin(void);
+void draw_frame_end(void);
 void draw_world(world const w[static 1]);
 
 #endif  // DBJ_THE_GAME_DRAW_H
