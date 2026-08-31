@@ -31,11 +31,13 @@ BUILD_DIR := $(subst \,/,$(DBJ_BUILDS))
 
 CFLAGS = -std=gnu23 -O3 -I $(CORELIB) -I ../../third_party/dbj_ubenchtest
 
-ifeq ($(OS),Windows_NT)
-MKDIR := if not exist $(subst /,\,$(BUILD_DIR)) mkdir $(subst /,\,$(BUILD_DIR))
-else
+# `mkdir -p` on both platforms. The cmd form `if not exist ... mkdir ...`
+# is only correct when cmd runs the recipe, and make hands recipes to sh
+# whenever one is on PATH -- which it is under Git Bash. sh cannot parse it
+# and the build dies with "syntax error: unexpected end of file", but only
+# on the run that has to create the directory, so an existing builds/ hides
+# it completely.
 MKDIR := mkdir -p $(BUILD_DIR)
-endif
 
 .PHONY: all clean
 

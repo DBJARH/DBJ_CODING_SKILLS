@@ -48,10 +48,17 @@ RAYLIB_CFLAGS := -I $(RAYLIB_DIR)/include
 # beside the static one, the linker prefers it -- the build succeeds and the
 # binary dies at startup on a missing DLL. Platform libraries come *after*
 # the archive, or ld reports undefined references from code plainly present.
+# `mkdir -p` on both platforms, and deliberately outside the ifeq. The cmd
+# form `if not exist ... mkdir ...` is only correct when cmd runs the
+# recipe, and make hands recipes to sh whenever one is on PATH -- which it
+# is under Git Bash. sh cannot parse it and the build dies with "syntax
+# error: unexpected end of file", but only on the run that has to create
+# the directory, so an existing builds/ hides it completely.
+MKDIR       := mkdir -p $(BUILD_DIR)
+
 ifeq ($(OS),Windows_NT)
 CC          := gcc
 EXE         := .exe
-MKDIR       := if not exist $(subst /,\,$(BUILD_DIR)) mkdir $(subst /,\,$(BUILD_DIR))
 # `cmd /c` is not decoration: del is a cmd builtin, and make spawns recipe
 # lines with CreateProcess, which finds no del.exe to run.
 RM_F        := cmd /c del /q
@@ -63,7 +70,6 @@ RAYLIB_LIBS := $(RAYLIB_DIR)/win64/libraylib.a -lopengl32 -lgdi32 -lwinmm
 else
 CC          := gcc-15
 EXE         :=
-MKDIR       := mkdir -p $(BUILD_DIR)
 RM_F        := rm -f
 native       = $1
 COPY_ASSETS := cp -r assets $(BUILD_DIR)/

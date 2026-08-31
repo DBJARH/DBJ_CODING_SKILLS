@@ -26,9 +26,16 @@ TARGET    := $(BUILD_DIR)/dbjobserve_smoketest
 #
 # Windows/MinGW ships plain gcc.exe (gcc 15+); Linux distros still default
 # `gcc` to an older version, so pin the versioned binary there.
+# `mkdir -p` on both platforms, and deliberately outside the ifeq. The cmd
+# form `if not exist ... mkdir ...` is only correct when cmd runs the
+# recipe, and make hands recipes to sh whenever one is on PATH -- which it
+# is under Git Bash. sh cannot parse it and the build dies with "syntax
+# error: unexpected end of file", but only on the run that has to create
+# the directory, so an existing builds/ hides it completely.
+MKDIR    := mkdir -p $(BUILD_DIR)
+
 ifeq ($(OS),Windows_NT)
 CC       := gcc
-MKDIR    := if not exist $(subst /,\,$(BUILD_DIR)) mkdir $(subst /,\,$(BUILD_DIR))
 
 CURL_DIR := ../../third_party/libcurl
 CURL_CFLAGS := -I $(CURL_DIR)/include -DCURL_STATICLIB
@@ -48,7 +55,6 @@ CURL_LIBS := $(CURL_DIR)/lib/libcurl.a -L $(CURL_DIR)/lib \
 LDFLAGS  := -static
 else
 CC       := gcc-15
-MKDIR    := mkdir -p $(BUILD_DIR)
 
 # Distro libcurl. Needs the -dev package (libcurl4-openssl-dev or
 # libcurl-devel); `pkg-config --static` reports curl's own dependency

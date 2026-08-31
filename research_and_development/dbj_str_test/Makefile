@@ -22,12 +22,18 @@ TARGET    := $(BUILD_DIR)/dbj_str_test
 
 # Windows/MinGW ships plain gcc.exe (gcc 15+); Linux distros still default
 # `gcc` to an older version, so pin the versioned binary there.
+# `mkdir -p` on both platforms, and deliberately outside the ifeq. The cmd
+# form `if not exist ... mkdir ...` is only correct when cmd runs the
+# recipe, and make hands recipes to sh whenever one is on PATH -- which it
+# is under Git Bash. sh cannot parse it and the build dies with "syntax
+# error: unexpected end of file", but only on the run that has to create
+# the directory, so an existing builds/ hides it completely.
+MKDIR   := mkdir -p $(BUILD_DIR)
+
 ifeq ($(OS),Windows_NT)
 CC      := gcc
-MKDIR   := if not exist $(subst /,\,$(BUILD_DIR)) mkdir $(subst /,\,$(BUILD_DIR))
 else
 CC      := gcc-15
-MKDIR   := mkdir -p $(BUILD_DIR)
 endif
 
 .PHONY: all run clean
