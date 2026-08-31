@@ -10,9 +10,14 @@ endif
 CORELIB   := $(subst \,/,$(DBJ_CORELIB))
 
 CFLAGS    := -std=c23 -Wall -Wextra -Wswitch -Werror -I $(CORELIB)
-# DBJ_BUILDS, if set in the environment, is where every folder's build
-# output goes; falls back to ../../builds (repo root) if unset.
-BUILD_DIR := $(subst \,/,$(if $(DBJ_BUILDS),$(DBJ_BUILDS),../../builds))
+# DBJ_BUILDS must be set in the environment and is where every folder's
+# build output goes. Like DBJ_CORELIB it is not optional and has no
+# fallback: the two say where the repo reads from and writes to, and a
+# rule that holds for one holds for the other.
+ifndef DBJ_BUILDS
+$(error DBJ_BUILDS is not set -- point it at a build output folder)
+endif
+BUILD_DIR := $(subst \,/,$(DBJ_BUILDS))
 
 SOURCES   := main.c world.c entity.c physics.c map.c input.c draw.c \
              dbj_configurator.c dbj_platform.c

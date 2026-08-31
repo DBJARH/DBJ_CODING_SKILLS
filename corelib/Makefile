@@ -1,7 +1,12 @@
 CFLAGS    := -std=c23 -Wall -Wextra -Wswitch -Werror -I.
-# DBJ_BUILDS, if set in the environment, is where every folder's build
-# output goes; falls back to ../builds (repo root) if unset.
-BUILD_DIR := $(if $(DBJ_BUILDS),$(DBJ_BUILDS),../builds)
+# DBJ_BUILDS must be set in the environment and is where every folder's
+# build output goes. Not optional and no fallback, as everywhere else in
+# the repo. DBJ_CORELIB is not required here: this folder is corelib and
+# compiles against itself with -I.
+ifndef DBJ_BUILDS
+$(error DBJ_BUILDS is not set -- point it at a build output folder)
+endif
+BUILD_DIR := $(subst \,/,$(DBJ_BUILDS))
 TARGET    := $(BUILD_DIR)/corelib_smoke_test
 
 # Windows/MinGW ships plain gcc.exe (gcc 15+); Linux distros still default

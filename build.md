@@ -33,9 +33,9 @@ flags. One script for every platform; on Windows run it from Git Bash:
 
 ## Where the executables lands
 
-Every folder's `Makefile` writes its executable(s) under `$DBJ_BUILDS`
-if that environment variable is set, falling back to `../builds` (a
-`builds/` folder at the repo root) if it isn't:
+Every folder's `Makefile` writes its executable(s) under `$DBJ_BUILDS`.
+It is required and there is no fallback — an unset `DBJ_BUILDS` stops
+the build the same way an unset `DBJ_CORELIB` does:
 
 ```
 # PowerShell
@@ -69,7 +69,7 @@ This is a separate, quicker path from the Makefile build above, not a
 replacement for it:
 
 - Output lands next to the source file (`<file>.exe`), **not** under
-  `$DBJ_BUILDS`/`../builds` — F5 doesn't go through `make` at all.
+  `$DBJ_BUILDS` — F5 doesn't go through `make` at all.
 - No `-Werror` (a stray warning shouldn't block a debug session), so
   it's slightly less strict than the real Makefile build.
 

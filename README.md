@@ -16,11 +16,14 @@ Small, self-contained C23 proof-of-concepts. Each folder stands alone.
 
 ## Two environment variables
 
-- **`DBJ_CORELIB` must point at this repo's `corelib/`.** Every
-  Makefile stops with an error if it is unset. No fallback: a wrong
+Both are required, and neither has a fallback. Every Makefile stops
+with an error if either is unset.
+
+- **`DBJ_CORELIB` must point at this repo's `corelib/`.** A wrong
   corelib is a broken build, not a silent one.
-- `DBJ_BUILDS`, optional, is where build output goes. Unset, each
-  folder writes to `builds/` at the repo root.
+- **`DBJ_BUILDS` is where build output goes.** Same rule, for the same
+  reason: the two say where the repo reads from and writes to, and one
+  cannot be mandatory while its neighbour guesses.
 
 ## Testing and benchmarking
 

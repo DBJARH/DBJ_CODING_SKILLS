@@ -19,9 +19,14 @@ endif
 # Forward slashes throughout. make hands its recipes to sh where one is
 # on PATH, and sh eats the backslashes out of a Windows path.
 CORELIB   := $(subst \,/,$(DBJ_CORELIB))
-# DBJ_BUILDS, if set in the environment, is where every folder's build
-# output goes; falls back to ../../builds (repo root) if unset.
-BUILD_DIR := $(subst \,/,$(if $(DBJ_BUILDS),$(DBJ_BUILDS),../../builds))
+# DBJ_BUILDS must be set in the environment and is where every folder's
+# build output goes. Like DBJ_CORELIB it is not optional and has no
+# fallback: the two say where the repo reads from and writes to, and a
+# rule that holds for one holds for the other.
+ifndef DBJ_BUILDS
+$(error DBJ_BUILDS is not set -- point it at a build output folder)
+endif
+BUILD_DIR := $(subst \,/,$(DBJ_BUILDS))
 
 CFLAGS    := -std=gnu23 -Wall -Wextra -Wswitch-enum -Werror \
              -I $(CORELIB) -I ../../third_party/dbj_ubenchtest \
